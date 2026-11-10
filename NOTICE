@@ -1,0 +1,9 @@
+NEC PBX for Home Assistant
+Copyright (c) 2026 Oliver Maller. MIT licence (see LICENSE).
+
+The handset in the icon is based on the Material Icons "phone" glyph by Google,
+licensed under the Apache License, Version 2.0:
+https://www.apache.org/licenses/LICENSE-2.0
+
+"NEC", "SL2100" and "SV9100" are trademarks of their owner and are used only to
+describe compatibility. This project is not affiliated with or endorsed by NEC.

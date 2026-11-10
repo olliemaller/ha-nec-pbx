@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- New black-and-white icon and logo, shown in Home Assistant's integration list (Home Assistant 2026.3 and later read them from the integration's `brand` folder).
+- New README and full documentation in `docs/`: installation, setup on the phone system, every entity, automation examples and troubleshooting.
+- Checks updated to the current GitHub actions.
+
 ## 0.1.0
 
 First release.
