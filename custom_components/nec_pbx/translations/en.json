@@ -1,0 +1,66 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "NEC phone system",
+        "description": "Connects to the SMDR (call log) port of an NEC SL2100 or SV9100. The port is set in Program 10-20 (external equipment 5, SMDR Output); 4001 is the Australian default.",
+        "data": {
+          "host": "Host",
+          "port": "SMDR port",
+          "name": "Name"
+        },
+        "data_description": {
+          "host": "IP address of the phone system's NET port, e.g. 192.168.0.10.",
+          "port": "Program 10-20, type 5. Only one program can hold this port at a time."
+        }
+      },
+      "reconfigure": {
+        "title": "Change connection",
+        "data": {
+          "host": "Host",
+          "port": "SMDR port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect. Check the address, that SMDR output is set to LAN (Program 35-01-01) and that no other call logger is connected."
+    },
+    "abort": {
+      "already_configured": "This phone system is already set up.",
+      "reconfigure_successful": "Connection updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Rooms and phonebook",
+        "description": "One entry per line as `number: name`. Each extension listed gets its own last-call sensor.",
+        "data": {
+          "extensions": "Extensions",
+          "phonebook": "Phonebook"
+        },
+        "data_description": {
+          "extensions": "For example `103: Oliver`.",
+          "phonebook": "For example `0491570156: Alex`. Used to put names on calls."
+        }
+      }
+    },
+    "error": {
+      "bad_mapping": "Every line needs a colon, like `103: Oliver`."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "call_log": { "name": "Call log connection" }
+    },
+    "sensor": {
+      "last_call": { "name": "Last call" },
+      "last_missed_call": { "name": "Last missed call" },
+      "calls_today": { "name": "Calls today" },
+      "missed_calls_today": { "name": "Missed calls today" },
+      "recent_calls": { "name": "Recent calls" },
+      "last_smdr_line": { "name": "Last call log line" },
+      "station_last_call": { "name": "{station} last call" }
+    }
+  }
+}
