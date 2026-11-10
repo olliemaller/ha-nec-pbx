@@ -1,0 +1,19 @@
+name: A call was read wrongly
+description: The number, room, duration or answered/missed came out wrong
+labels: [call log format]
+body:
+  - type: input
+    id: pbx
+    attributes: {label: Phone system, software version and country, placeholder: "SL2100, 5.21, Australia"}
+    validations: {required: true}
+  - type: textarea
+    id: line
+    attributes:
+      label: The raw call log line
+      description: Copy it from the "Last call log line" sensor or from diagnostics. Replace real phone numbers with x's, but keep the spacing exactly as it is.
+      render: text
+    validations: {required: true}
+  - type: textarea
+    id: expected
+    attributes: {label: What should it have read?, placeholder: "Incoming from 0491xxxxxx, answered at extension 103, 2 min 35 s"}
+    validations: {required: true}

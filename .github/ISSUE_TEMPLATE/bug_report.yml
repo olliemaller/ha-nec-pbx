@@ -1,0 +1,25 @@
+name: Bug report
+description: Something isn't working
+labels: [bug, needs diagnostics]
+body:
+  - type: input
+    id: ha
+    attributes: {label: Home Assistant version, placeholder: "2026.11.1"}
+    validations: {required: true}
+  - type: input
+    id: version
+    attributes: {label: Integration version, placeholder: "0.1.1"}
+    validations: {required: true}
+  - type: input
+    id: pbx
+    attributes: {label: Phone system and software version, placeholder: "SL2100, software 5.21"}
+    validations: {required: true}
+  - type: textarea
+    id: what
+    attributes: {label: What happened, and what did you expect?}
+    validations: {required: true}
+  - type: textarea
+    id: diag
+    attributes:
+      label: Diagnostics and logs
+      description: Attach diagnostics from the integration's ⋮ menu (phone numbers are masked) and any debug logs.

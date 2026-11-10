@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://github.com/olliemaller/ha-nec-pbx/tree/main/docs
+    about: Installation, setup, automations and troubleshooting.

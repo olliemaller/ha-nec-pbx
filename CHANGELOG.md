@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Issue forms for bugs, calls read wrongly and feature requests, and a pull request template.
+- Setup guide lists the exact phone system settings of a tested SL2100.
+
 ## 0.1.1
 
 - New black-and-white icon and logo, shown in Home Assistant's integration list (Home Assistant 2026.3 and later read them from the integration's `brand` folder).

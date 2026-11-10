@@ -16,6 +16,22 @@ The integration reads the **SMDR** (Station Message Detail Recording) call log, 
 
 Only **one** program can be connected to the SMDR port at a time. Close any other call-logging software first.
 
+### A setup it's tested on
+
+An Australian SL2100 (software 5.21) with eight analogue extensions, two Telstra lines and InMail voicemail. Nothing below had to be changed for this integration; these are the values it runs with:
+
+| Program | Value |
+|---|---|
+| 10-12 | Fixed IP address on the home network (`192.168.0.10`) |
+| 10-20, type 5 | Port `4001` |
+| 35-01-01 | LAN |
+| 35-01-08 | General Overseas |
+| 35-02-08 | Incoming calls printed |
+| 35-02-09 | Extension number |
+| 35-01 summaries | Off |
+
+The Home Assistant options for that system list one room per extension (`101: Rumpus` to `108: Study`) and the family's mobiles in the phonebook.
+
 ## 2. Add the integration
 
 [![Add integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=nec_pbx)

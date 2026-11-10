@@ -1,0 +1,11 @@
+name: Feature request
+description: Suggest something new
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes: {label: What would you like it to do, and why?}
+    validations: {required: true}
+  - type: input
+    id: pbx
+    attributes: {label: Your phone system, placeholder: "SV9100"}
