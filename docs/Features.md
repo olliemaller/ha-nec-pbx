@@ -37,9 +37,17 @@ The *last call* sensors keep their value and attributes over a restart.
 |---|---|
 | Call log connection | On while Home Assistant is connected to the SMDR port. Attributes: `lines_received`, `last_error`. |
 
-## Events
+## Event entity
 
-`nec_pbx_call` for every call, and `nec_pbx_missed_call` for missed ones. See [Automations](Automations.md).
+| Entity | Fires | Event types |
+|---|---|---|
+| Call | Once for every finished call | `incoming`, `missed`, `outgoing`, `internal`, `other` |
+
+Each event carries `start`, `number`, `caller_name`, `station`, `station_name`, `duration`, `ring_time`, `trunk` and `answered`. A missed call is typed `missed`, not `incoming`. The state is the time of the last call.
+
+## Events on the event bus
+
+`nec_pbx_call` for every call, and `nec_pbx_missed_call` for missed ones, with every attribute above plus the raw line. See [Automations](Automations.md).
 
 ## What it can't do
 

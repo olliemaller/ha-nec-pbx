@@ -51,16 +51,48 @@
   },
   "entity": {
     "binary_sensor": {
-      "call_log": { "name": "Call log connection" }
+      "call_log": {
+        "name": "Call log connection"
+      }
+    },
+    "event": {
+      "call": {
+        "name": "Call",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "incoming": "Incoming",
+              "missed": "Missed",
+              "outgoing": "Outgoing",
+              "internal": "Internal",
+              "other": "Other"
+            }
+          }
+        }
+      }
     },
     "sensor": {
-      "last_call": { "name": "Last call" },
-      "last_missed_call": { "name": "Last missed call" },
-      "calls_today": { "name": "Calls today" },
-      "missed_calls_today": { "name": "Missed calls today" },
-      "recent_calls": { "name": "Recent calls" },
-      "last_smdr_line": { "name": "Last call log line" },
-      "station_last_call": { "name": "{station} last call" }
+      "last_call": {
+        "name": "Last call"
+      },
+      "last_missed_call": {
+        "name": "Last missed call"
+      },
+      "calls_today": {
+        "name": "Calls today"
+      },
+      "missed_calls_today": {
+        "name": "Missed calls today"
+      },
+      "recent_calls": {
+        "name": "Recent calls"
+      },
+      "last_smdr_line": {
+        "name": "Last call log line"
+      },
+      "station_last_call": {
+        "name": "{station} last call"
+      }
     }
   }
 }

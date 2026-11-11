@@ -20,13 +20,14 @@ from .const import (
     EVENT_CALL,
     EVENT_MISSED_CALL,
     RECENT_CALLS,
+    SIGNAL_CALL,
     SIGNAL_UPDATE,
 )
 from .smdr import SmdrRecord, parse_line, parse_mapping
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.EVENT, Platform.SENSOR]
 
 
 @dataclass
@@ -94,6 +95,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
         if record.missed:
             data.last_missed = record
             hass.bus.async_fire(EVENT_MISSED_CALL, event_data)
+        async_dispatcher_send(hass, SIGNAL_CALL.format(entry.entry_id), record)
         async_dispatcher_send(hass, signal)
 
     client = SmdrClient(entry.data[CONF_HOST], entry.data[CONF_PORT], _on_line, _on_state)

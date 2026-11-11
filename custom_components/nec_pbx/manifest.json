@@ -1,12 +1,14 @@
 {
   "domain": "nec_pbx",
   "name": "NEC PBX",
-  "codeowners": ["@olliemaller"],
+  "codeowners": [
+    "@olliemaller"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/olliemaller/ha-nec-pbx",
   "integration_type": "device",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/olliemaller/ha-nec-pbx/issues",
   "requirements": [],
-  "version": "0.1.1"
+  "version": "0.2.0"
 }

@@ -43,7 +43,8 @@
 | | |
 |---|---|
 | **Last call** | When it was, in or out, the number, the caller's name, the room, how long it lasted and whether it was answered. |
-| **Missed calls** | A "Last missed call" sensor and a `nec_pbx_missed_call` event for notifications. |
+| **Missed calls** | A "Last missed call" sensor, and a [ready-made blueprint](https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/Automations.md#missed-call-blueprint) that notifies your phone. |
+| **Call event** | One **Call** event per finished call, typed incoming, missed, outgoing or internal, ready to pick in the automation editor. |
 | **Every room** | A "last call" sensor for each extension you name, such as *Oliver last call*. |
 | **Daily counts** | Calls today and missed calls today, reset at midnight. |
 | **Recent calls** | The last 20 calls as a list, ready for a dashboard card. |

@@ -16,6 +16,7 @@ EVENT_CALL: Final = "nec_pbx_call"
 EVENT_MISSED_CALL: Final = "nec_pbx_missed_call"
 
 SIGNAL_UPDATE: Final = "nec_pbx_update_{}"
+SIGNAL_CALL: Final = "nec_pbx_new_call_{}"
 
 RECENT_CALLS: Final = 20
 

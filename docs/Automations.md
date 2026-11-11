@@ -1,5 +1,31 @@
 # Automations
 
+## Missed call blueprint
+
+The quickest way to get a notification on your phone:
+
+[![Import the blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Folliemaller%2Fha-nec-pbx%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fnec_pbx%2Fmissed_call_notification.yaml)
+
+Pick the **Call** entity and your phone. The message reads like "Alex at 6:12 pm (rang Family)".
+
+## The Call event entity
+
+In the automation editor, add a **State** trigger on the **Call** entity, then a **State** condition on its `event_type` attribute. No YAML needed. As YAML:
+
+```yaml
+triggers:
+  - trigger: state
+    entity_id: event.house_phones_call
+    not_from: unavailable
+conditions:
+  - condition: state
+    entity_id: event.house_phones_call
+    attribute: event_type
+    state: missed
+```
+
+The call's details are attributes of the entity: `state_attr('event.house_phones_call', 'caller_name')`.
+
 ## Events
 
 | Event | When |

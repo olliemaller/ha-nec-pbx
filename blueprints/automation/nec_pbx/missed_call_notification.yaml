@@ -1,0 +1,66 @@
+blueprint:
+  name: NEC PBX – missed call notification
+  description: >-
+    Sends a phone notification when a call to the house phones goes unanswered.
+    Uses the **Call** event entity from the NEC PBX integration, so the caller's
+    name comes from your phonebook when it's there.
+  domain: automation
+  author: olliemaller
+  source_url: https://github.com/olliemaller/ha-nec-pbx/blob/main/blueprints/automation/nec_pbx/missed_call_notification.yaml
+  homeassistant:
+    min_version: "2025.6.0"
+  input:
+    call_event:
+      name: Call event
+      description: The NEC PBX "Call" entity, for example event.house_phones_call.
+      selector:
+        entity:
+          filter:
+            - integration: nec_pbx
+              domain: event
+    notify_device:
+      name: Phone to notify
+      description: A phone with the Home Assistant app.
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+    title:
+      name: Title
+      default: Missed call
+      selector:
+        text:
+
+triggers:
+  - trigger: state
+    entity_id: !input call_event
+    not_from:
+      - unavailable
+      - unknown
+
+conditions:
+  - condition: state
+    entity_id: !input call_event
+    attribute: event_type
+    state: missed
+
+variables:
+  call_event: !input call_event
+  caller: >-
+    {{ state_attr(call_event, 'caller_name')
+       or state_attr(call_event, 'number')
+       or 'an unknown number' }}
+  room: "{{ state_attr(call_event, 'station_name') or state_attr(call_event, 'station') }}"
+  when: >-
+    {{ as_timestamp(state_attr(call_event, 'start') or now()) | timestamp_custom('%-I:%M %p') }}
+
+actions:
+  - domain: mobile_app
+    type: notify
+    device_id: !input notify_device
+    title: !input title
+    message: >-
+      {{ caller }} at {{ when }}{{ ' (rang ' ~ room ~ ')' if room else '' }}
+
+mode: queued
+max: 10

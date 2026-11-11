@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
+- New **Call** event entity. Every finished call fires one event, typed `incoming`, `missed`, `outgoing`, `internal` or `other`, so you can pick them in the automation editor instead of typing event names. Each event carries the number, caller name, room, duration, ring time and line.
+- New blueprint: **missed call notification** to a phone with the Home Assistant app.
+- Releases are now built by GitHub when a version is tagged, with `nec_pbx.zip` attached for HACS.
 - Issue forms for bugs, calls read wrongly and feature requests, and a pull request template.
 - Setup guide lists the exact phone system settings of a tested SL2100.
 

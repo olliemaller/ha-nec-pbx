@@ -134,6 +134,12 @@ async def test_calls_update_sensors_and_fire_events(hass: HomeAssistant, pbx: Fa
     raw = hass.states.get("sensor.teak_phones_last_call_log_line")
     assert "NO ANSWER" in raw.state
 
+    event = hass.states.get("event.teak_phones_call")
+    assert event.attributes["event_type"] == "missed"
+    assert event.attributes["caller_name"] == "Sam"
+    assert event.attributes["station_name"] == "Family"
+    assert "missed" in event.attributes["event_types"]
+
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is ConfigEntryState.NOT_LOADED
 
@@ -179,3 +185,31 @@ async def test_diagnostics_mask_numbers(hass: HomeAssistant, pbx: FakePbx) -> No
     assert "0491xxxxxx" in text
     assert diag["connection"]["connected"] is True
     assert diag["recent"][0]["station"] == "103"
+
+
+def _event_type(hass: HomeAssistant) -> str | None:
+    return hass.states.get("event.teak_phones_call").attributes.get("event_type")
+
+
+async def test_event_types(hass: HomeAssistant, pbx: FakePbx) -> None:
+    entry = await _setup(hass, pbx)
+    await pbx.send("OG 0001  18:12  001   00:02:35  103   0491570156\r\n")
+    await _wait(
+        hass,
+        lambda: hass.states.get("event.teak_phones_call").attributes["event_type"] == "outgoing",
+    )
+    await pbx.send("IC 0002  18:15  001   00:01:00  104   0491570157   0:08\r\n")
+    await _wait(
+        hass,
+        lambda: hass.states.get("event.teak_phones_call").attributes["event_type"] == "incoming",
+    )
+    assert hass.states.get("event.teak_phones_call").attributes["duration"] == 60
+    # A dropped connection must not look like a new call.
+    before = hass.states.get("event.teak_phones_call").state
+    await pbx.drop_clients()
+    await _wait(
+        hass,
+        lambda: hass.states.get("binary_sensor.teak_phones_call_log_connection").state == "off",
+    )
+    assert hass.states.get("event.teak_phones_call").state == before
+    assert await hass.config_entries.async_unload(entry.entry_id)
