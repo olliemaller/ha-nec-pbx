@@ -161,3 +161,17 @@ def test_timezone_aware_now() -> None:
     rec = parse_line("29 NAME  08:29 22/04 017   226xxxxx  0:19  NO ANSWER", now=now)
     assert rec is not None
     assert rec.start.tzinfo is tz
+
+
+def test_is_live() -> None:
+    from datetime import datetime, timedelta
+
+    from custom_components.nec_pbx.smdr import SmdrRecord
+
+    now = datetime(2026, 11, 11, 18, 30)
+    window = timedelta(minutes=15)
+    just_now = SmdrRecord(raw="", start=now - timedelta(minutes=3), duration=60, ring_time=5)
+    stored = SmdrRecord(raw="", start=now - timedelta(hours=19), duration=15)
+    assert just_now.is_live(now, window)
+    assert not stored.is_live(now, window)
+    assert SmdrRecord(raw="").is_live(now, window)

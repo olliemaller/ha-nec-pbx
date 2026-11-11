@@ -162,7 +162,10 @@ class CallCountSensor(NecPbxEntity, RestoreSensor):
         record = self.data.last_call
         if record is not None and record is not self._seen:
             self._seen = record
-            if not self._missed_only or record.missed:
+            today = dt_util.start_of_local_day()
+            if (record.start is None or record.start >= today) and (
+                not self._missed_only or record.missed
+            ):
                 self._count += 1
         super()._handle_update()
 

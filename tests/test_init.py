@@ -5,11 +5,13 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 import contextlib
+from datetime import timedelta
 from unittest.mock import patch
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_capture_events
 
@@ -71,6 +73,11 @@ async def pbx(hass: HomeAssistant, socket_enabled) -> AsyncIterator[FakePbx]:
     await server.stop()
 
 
+def _hm(minutes_ago: int = 1) -> str:
+    """A call time the phone system would print for a call that just finished."""
+    return (dt_util.now() - timedelta(minutes=minutes_ago)).strftime("%H:%M")
+
+
 async def _wait(hass: HomeAssistant, predicate, timeout: float = 3.0) -> None:
     async with asyncio.timeout(timeout):
         while not predicate():
@@ -107,9 +114,9 @@ async def test_calls_update_sensors_and_fire_events(hass: HomeAssistant, pbx: Fa
 
     # Header, an answered call split across two TCP packets, then a missed call.
     await pbx.send("CLSS  TIME   LINE   DURATION  STATION  DIALLED No./CLI\r\n")
-    await pbx.send("IC 0001  18:12  001   00:02:35  103   04915")
+    await pbx.send(f"IC 0001  {_hm(4)}  001   00:02:35  103   04915")
     await pbx.send("70156   0:08\r\n")
-    await pbx.send("IC 0002  18:15  001                 104   0491570157   0:21  NO ANSWER\r\n")
+    await pbx.send(f"IC 0002  {_hm(1)}  001                 104   0491570157   0:21  NO ANSWER\r\n")
     await _wait(hass, lambda: len(calls) == 2)
 
     assert calls[0].data["caller_name"] == "Alex"
@@ -164,7 +171,7 @@ async def test_reconnects_after_pbx_drops(hass: HomeAssistant, pbx: FakePbx) -> 
 async def test_unreadable_line_is_counted_not_fatal(hass: HomeAssistant, pbx: FakePbx) -> None:
     entry = await _setup(hass, pbx)
     await pbx.send("12:00 ????\r\n")
-    await pbx.send("OG 0001  18:12  001   00:02:35  103   0491570156\r\n")
+    await pbx.send(f"OG 0001  {_hm(4)}  001   00:02:35  103   0491570156\r\n")
     calls = async_capture_events(hass, EVENT_CALL)
     await _wait(hass, lambda: entry.runtime_data.last_call is not None)
     assert entry.runtime_data.unparsed_lines == 1
@@ -177,7 +184,7 @@ async def test_diagnostics_mask_numbers(hass: HomeAssistant, pbx: FakePbx) -> No
     from custom_components.nec_pbx.diagnostics import async_get_config_entry_diagnostics
 
     entry = await _setup(hass, pbx)
-    await pbx.send("OG 0001  18:12  001   00:02:35  103   0491570156\r\n")
+    await pbx.send(f"OG 0001  {_hm(4)}  001   00:02:35  103   0491570156\r\n")
     await _wait(hass, lambda: entry.runtime_data.last_call is not None)
     diag = await async_get_config_entry_diagnostics(hass, entry)
     text = str(diag)
@@ -193,12 +200,12 @@ def _event_type(hass: HomeAssistant) -> str | None:
 
 async def test_event_types(hass: HomeAssistant, pbx: FakePbx) -> None:
     entry = await _setup(hass, pbx)
-    await pbx.send("OG 0001  18:12  001   00:02:35  103   0491570156\r\n")
+    await pbx.send(f"OG 0001  {_hm(4)}  001   00:02:35  103   0491570156\r\n")
     await _wait(
         hass,
         lambda: hass.states.get("event.teak_phones_call").attributes["event_type"] == "outgoing",
     )
-    await pbx.send("IC 0002  18:15  001   00:01:00  104   0491570157   0:08\r\n")
+    await pbx.send(f"IC 0002  {_hm(2)}  001   00:01:00  104   0491570157   0:08\r\n")
     await _wait(
         hass,
         lambda: hass.states.get("event.teak_phones_call").attributes["event_type"] == "incoming",
@@ -212,4 +219,26 @@ async def test_event_types(hass: HomeAssistant, pbx: FakePbx) -> None:
         lambda: hass.states.get("binary_sensor.teak_phones_call_log_connection").state == "off",
     )
     assert hass.states.get("event.teak_phones_call").state == before
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_replayed_calls_are_not_announced(hass: HomeAssistant, pbx: FakePbx) -> None:
+    """On connect the SL2100 replays calls it stored while nobody was listening."""
+    calls = async_capture_events(hass, EVENT_CALL)
+    missed = async_capture_events(hass, EVENT_MISSED_CALL)
+    entry = await _setup(hass, pbx)
+    yesterday = (dt_util.now() - timedelta(days=1)).strftime("%d/%m")
+    await pbx.send(f"IC 0001  {yesterday} 18:15  001   104   0491570157   0:21  NO ANSWER\r\n")
+    await _wait(hass, lambda: entry.runtime_data.last_call is not None)
+
+    assert calls == []
+    assert missed == []
+    assert hass.states.get("event.teak_phones_call").state == "unknown"
+    assert hass.states.get("sensor.teak_phones_calls_today").state == "0"
+    assert hass.states.get("sensor.teak_phones_missed_calls_today").state == "0"
+    # The history still shows it.
+    assert (
+        hass.states.get("sensor.teak_phones_last_missed_call").attributes["caller_name"] == "Sam"
+    )
+    assert hass.states.get("sensor.teak_phones_recent_calls").state == "1"
     assert await hass.config_entries.async_unload(entry.entry_id)

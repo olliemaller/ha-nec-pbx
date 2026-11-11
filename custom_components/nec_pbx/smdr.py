@@ -76,6 +76,18 @@ class SmdrRecord:
         """An incoming call that nobody answered."""
         return self.direction == DIRECTION_INCOMING and not self.answered
 
+    @property
+    def ended(self) -> datetime | None:
+        """When the call ended: start plus ring and talk time."""
+        if self.start is None:
+            return None
+        return self.start + timedelta(seconds=(self.ring_time or 0) + (self.duration or 0))
+
+    def is_live(self, now: datetime, window: timedelta) -> bool:
+        """True for a call that just finished, not one replayed from the phone system's store."""
+        ended = self.ended
+        return ended is None or now - ended <= window
+
     def as_dict(self) -> dict[str, Any]:
         """JSON-safe dict for events and attributes."""
         data = asdict(self)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Final
 
 DOMAIN: Final = "nec_pbx"
@@ -19,6 +20,10 @@ SIGNAL_UPDATE: Final = "nec_pbx_update_{}"
 SIGNAL_CALL: Final = "nec_pbx_new_call_{}"
 
 RECENT_CALLS: Final = 20
+
+# The phone system replays its stored call log on connect. Only calls that ended
+# within this window fire events, so a reconnect never re-announces old calls.
+LIVE_WINDOW: Final = timedelta(minutes=15)
 
 # Reconnect back-off (seconds).
 RECONNECT_MIN: Final = 5

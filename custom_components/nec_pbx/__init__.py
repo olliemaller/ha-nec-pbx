@@ -19,6 +19,7 @@ from .const import (
     DOMAIN,
     EVENT_CALL,
     EVENT_MISSED_CALL,
+    LIVE_WINDOW,
     RECENT_CALLS,
     SIGNAL_CALL,
     SIGNAL_UPDATE,
@@ -90,12 +91,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
         data.last_call = record
         if record.station:
             data.last_by_station[record.station] = record
-        event_data = {"entry_id": entry.entry_id, **record.as_dict()}
-        hass.bus.async_fire(EVENT_CALL, event_data)
         if record.missed:
             data.last_missed = record
-            hass.bus.async_fire(EVENT_MISSED_CALL, event_data)
-        async_dispatcher_send(hass, SIGNAL_CALL.format(entry.entry_id), record)
+        if record.is_live(dt_util.now(), LIVE_WINDOW):
+            event_data = {"entry_id": entry.entry_id, **record.as_dict()}
+            hass.bus.async_fire(EVENT_CALL, event_data)
+            if record.missed:
+                hass.bus.async_fire(EVENT_MISSED_CALL, event_data)
+            async_dispatcher_send(hass, SIGNAL_CALL.format(entry.entry_id), record)
+        else:
+            _LOGGER.debug("Stored call replayed by the phone system, no event: %r", line)
         async_dispatcher_send(hass, signal)
 
     client = SmdrClient(entry.data[CONF_HOST], entry.data[CONF_PORT], _on_line, _on_state)
