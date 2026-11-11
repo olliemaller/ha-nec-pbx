@@ -10,21 +10,19 @@ Pick the **Call** entity and your phone. The message reads like "Alex at 6:12 pm
 
 ## The Call event entity
 
-In the automation editor, add a **State** trigger on the **Call** entity, then a **State** condition on its `event_type` attribute. No YAML needed. As YAML:
+In the automation editor, add an **Event received** trigger, pick the **Call** entity and tick the call types you want. No YAML needed. As YAML (Home Assistant 2026.7 or newer):
 
 ```yaml
 triggers:
-  - trigger: state
-    entity_id: event.house_phones_call
-    not_from: unavailable
-conditions:
-  - condition: state
-    entity_id: event.house_phones_call
-    attribute: event_type
-    state: missed
+  - trigger: event.received
+    target:
+      entity_id: event.house_phones_call
+    options:
+      event_type:
+        - missed
 ```
 
-The call's details are attributes of the entity: `state_attr('event.house_phones_call', 'caller_name')`.
+The call's details are in `trigger.to_state.attributes`, for example `{{ trigger.to_state.attributes.caller_name }}`. On older Home Assistant, use a **State** trigger on the entity with a **State** condition on its `event_type` attribute.
 
 ## Events
 

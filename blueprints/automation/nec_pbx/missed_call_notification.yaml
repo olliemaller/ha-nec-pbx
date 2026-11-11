@@ -8,7 +8,7 @@ blueprint:
   author: olliemaller
   source_url: https://github.com/olliemaller/ha-nec-pbx/blob/main/blueprints/automation/nec_pbx/missed_call_notification.yaml
   homeassistant:
-    min_version: "2025.6.0"
+    min_version: "2026.7.0"
   input:
     call_event:
       name: Call event
@@ -32,27 +32,18 @@ blueprint:
         text:
 
 triggers:
-  - trigger: state
-    entity_id: !input call_event
-    not_from:
-      - unavailable
-      - unknown
-
-conditions:
-  - condition: state
-    entity_id: !input call_event
-    attribute: event_type
-    state: missed
+  - trigger: event.received
+    target:
+      entity_id: !input call_event
+    options:
+      event_type:
+        - missed
 
 variables:
-  call_event: !input call_event
-  caller: >-
-    {{ state_attr(call_event, 'caller_name')
-       or state_attr(call_event, 'number')
-       or 'an unknown number' }}
-  room: "{{ state_attr(call_event, 'station_name') or state_attr(call_event, 'station') }}"
-  when: >-
-    {{ as_timestamp(state_attr(call_event, 'start') or now()) | timestamp_custom('%-I:%M %p') }}
+  call: "{{ trigger.to_state.attributes }}"
+  caller: "{{ call.caller_name or call.number or 'an unknown number' }}"
+  room: "{{ call.station_name or call.station or '' }}"
+  when: "{{ as_timestamp(call.start or now()) | timestamp_custom('%-I:%M %p') }}"
 
 actions:
   - domain: mobile_app
