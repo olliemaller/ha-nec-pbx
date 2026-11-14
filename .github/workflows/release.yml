@@ -83,5 +83,7 @@ jobs:
         run: |
           v=${{ matrix.rel.tag }}; v=${v#v}
           latest=false; [ "${{ matrix.rel.tag }}" = "${{ needs.plan.outputs.current }}" ] && latest=true
-          gh release create ${{ matrix.rel.tag }} nec_pbx.zip --target ${{ matrix.rel.sha }} \
+          # Create the tag with git first (clearer errors than the releases API), then the release on it.
+          git push origin "${{ matrix.rel.sha }}:refs/tags/${{ matrix.rel.tag }}" || git ls-remote --exit-code origin "refs/tags/${{ matrix.rel.tag }}"
+          gh release create ${{ matrix.rel.tag }} nec_pbx.zip --verify-tag \
             --title "${v}" --notes-file notes.md --latest=$latest
