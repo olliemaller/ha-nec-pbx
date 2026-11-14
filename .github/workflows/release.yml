@@ -25,6 +25,19 @@ jobs:
       current: ${{ steps.plan.outputs.current }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Remove releases whose tag isn't on main (after a history rewrite)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch --tags --force
+          for tag in $(git tag -l 'v*'); do
+            if ! git merge-base --is-ancestor "$tag^{commit}" origin/main; then
+              echo "Removing $tag (its commit is no longer on main)"
+              gh release delete "$tag" --cleanup-tag -y || git push origin ":refs/tags/$tag"
+            fi
+          done
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}

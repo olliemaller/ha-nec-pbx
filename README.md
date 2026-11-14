@@ -60,7 +60,7 @@
 1. **Check the phone system** is sending its call log over the network. On SL2100 these are the defaults: Program 35-01-01 *Output port* = LAN, and Program 10-20 *SMDR Output* port (4001 on Australian systems). [Details](https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/Setup.md).
 2. **Install** from the Marketplace (Home Assistant 2026.11+) or HACS with the button above. [Other ways](https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/Installation.md).
 3. **Add the integration** with the phone system's IP address and the SMDR port.
-4. **Name your rooms** under **Configure**, one per line, like `103: Oliver`, and add a phonebook, like `0412 345 678: Mum`.
+4. **Name your rooms** under **Configure**, one per line, like `103: Oliver`, and add a phonebook, like `0491 570 006: Mum`.
 
 Needs an NEC SL2100 or SV9100 on your network, and Home Assistant 2025.6 or newer. Tested on an SL2100 (Australian, software 5.21). Please [tell us how it went](https://github.com/olliemaller/ha-nec-pbx/issues/new) on yours.
 

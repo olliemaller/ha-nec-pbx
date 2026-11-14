@@ -22,7 +22,7 @@ The *last call* sensors and the daily totals keep their values over a restart. T
 | Attribute | Example | |
 |---|---|---|
 | `direction` | `incoming`, `outgoing`, `internal` | |
-| `number` | `0412345678` | Outside number. Ends in `X` if the phone system hides digits. |
+| `number` | `0491570006` | Outside number. Ends in `X` if the phone system hides digits. |
 | `caller_name` | `Mum` | From the phonebook |
 | `station` | `103` | The extension |
 | `station_name` | `Oliver` | From the extensions list |

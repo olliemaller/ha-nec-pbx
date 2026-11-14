@@ -61,7 +61,7 @@ Open the integration and choose **Configure**. Enter one entry per line as `numb
 **Phonebook:** puts names on calls. Spaces and `+61` are fine.
 
 ```
-0412 345 678: Mum
+0491 570 006: Mum
 +61 400 000 000: Grandpa
 ```
 

@@ -1,4 +1,6 @@
 [
-  {"tag": "v0.1.0", "sha": "007294686b6daaa113bca47da63cb9041c2e0ba0"},
-  {"tag": "v0.1.1", "sha": "406e5cf228d11e4328d4ec884cf79c79395b76f8"}
+  {"tag": "v0.1.0", "sha": "350aa855651aa8cbd5e03af82d57044181c813c0"},
+  {"tag": "v0.1.1", "sha": "8006bbee74eaef0c67b14315b536bb83ea76eb50"},
+  {"tag": "v0.2.0", "sha": "e309100d64ac35b16b3374e8881c6c699d56f6b6"},
+  {"tag": "v0.3.0", "sha": "a3bcf8894330b94a7ad8047a21bd2447f514fdca"}
 ]
