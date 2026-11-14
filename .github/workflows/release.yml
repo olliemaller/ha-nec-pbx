@@ -1,42 +1,74 @@
 name: Release
 
+# Publishes a release whenever the version in manifest.json changes on main (no tag push
+# needed), or when a v* tag is pushed. Versions made before this workflow that never got a
+# release are listed in .github/release-history.json and released from their own commits.
+
 on:
   push:
+    branches: [main]
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  release:
+  plan:
     runs-on: ubuntu-latest
+    outputs:
+      todo: ${{ steps.plan.outputs.todo }}
+      current: ${{ steps.plan.outputs.current }}
     steps:
       - uses: actions/checkout@v5
-
-      - name: Check the tag matches manifest.json
-        run: |
-          tag="${GITHUB_REF_NAME#v}"
-          version="$(jq -r .version custom_components/nec_pbx/manifest.json)"
-          if [ "$tag" != "$version" ]; then
-            echo "Tag v$tag does not match manifest version $version" >&2
-            exit 1
-          fi
-
-      - name: Build nec_pbx.zip
-        run: |
-          cd custom_components/nec_pbx
-          zip -r ../../nec_pbx.zip . -x '__pycache__/*' '*.pyc'
-
-      - name: Release notes from CHANGELOG.md
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          awk -v v="## $version" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md > notes.md
-          if [ ! -s notes.md ]; then echo "See CHANGELOG.md." > notes.md; fi
-
-      - name: Publish the release
+      - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" nec_pbx.zip \
-            --title "${GITHUB_REF_NAME#v}" \
-            --notes-file notes.md
+          ver=$(jq -r .version custom_components/nec_pbx/manifest.json)
+          echo "current=v$ver" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "v$ver" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match manifest version $ver" >&2; exit 1
+          fi
+          existing=$(gh release list --limit 200 --json tagName -q '.[].tagName' || true)
+          todo=$(jq -c --arg cur "v$ver" --arg sha "$GITHUB_SHA" --arg have "$existing" '
+            (. + [{tag: $cur, sha: $sha}])
+            | map(select(.tag as $t | ($have | split("\n") | index($t)) | not))' .github/release-history.json)
+          echo "todo=$todo" >> "$GITHUB_OUTPUT"
+          echo "To release: $todo"
+
+  release:
+    needs: plan
+    if: needs.plan.outputs.todo != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        rel: ${{ fromJSON(needs.plan.outputs.todo) }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Build nec_pbx.zip from ${{ matrix.rel.sha }}
+        run: |
+          git worktree add /tmp/src ${{ matrix.rel.sha }}
+          ver=$(jq -r .version /tmp/src/custom_components/nec_pbx/manifest.json)
+          [ "v$ver" = "${{ matrix.rel.tag }}" ] || { echo "manifest at that commit says $ver" >&2; exit 1; }
+          (cd /tmp/src/custom_components/nec_pbx && zip -r "$GITHUB_WORKSPACE/nec_pbx.zip" . -x '__pycache__/*' '*.pyc')
+      - name: Release notes from CHANGELOG.md
+        run: |
+          v=${{ matrix.rel.tag }}; v=${v#v}
+          awk -v v="## $v" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "See CHANGELOG.md." > notes.md
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=${{ matrix.rel.tag }}; v=${v#v}
+          latest=false; [ "${{ matrix.rel.tag }}" = "${{ needs.plan.outputs.current }}" ] && latest=true
+          gh release create ${{ matrix.rel.tag }} nec_pbx.zip --target ${{ matrix.rel.sha }} \
+            --title "${v}" --notes-file notes.md --latest=$latest

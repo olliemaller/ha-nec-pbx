@@ -34,7 +34,10 @@ class FakePbx:
         self.port = 0
 
     async def start(self) -> None:
-        self.server = await asyncio.start_server(self._handle, "127.0.0.1", 0)
+        await self.start_on(0)
+
+    async def start_on(self, port: int) -> None:
+        self.server = await asyncio.start_server(self._handle, "127.0.0.1", port)
         self.port = self.server.sockets[0].getsockname()[1]
 
     async def _handle(self, _reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:

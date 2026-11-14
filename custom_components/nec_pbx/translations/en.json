@@ -92,7 +92,16 @@
       },
       "station_last_call": {
         "name": "{station} last call"
+      },
+      "talk_time_today": {
+        "name": "Talk time today"
       }
+    }
+  },
+  "issues": {
+    "call_log_unreachable": {
+      "title": "{name}: call log not connected",
+      "description": "Home Assistant hasn't been able to read the call log from the phone system at {address} for over 10 minutes (last error: {error}).\n\nCalls made in the meantime aren't lost: the phone system keeps them and sends them when the connection comes back. Check that the phone system is on, that its address hasn't changed, and that no other program (such as call-logging software) is connected to the SMDR port. This message clears itself once the call log reconnects."
     }
   }
 }

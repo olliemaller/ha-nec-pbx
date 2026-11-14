@@ -11,7 +11,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import EntityCategory
+from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_time_change
@@ -53,6 +53,7 @@ async def async_setup_entry(
         LastCallSensor(entry, "last_missed_call"),
         CallCountSensor(entry, "calls_today", missed_only=False),
         CallCountSensor(entry, "missed_calls_today", missed_only=True),
+        TalkTimeSensor(entry),
         RecentCallsSensor(entry),
         LastLineSensor(entry),
     ]
@@ -123,20 +124,21 @@ class StationLastCallSensor(_RestoringTimestamp):
         return self.data.last_by_station.get(self._ext)
 
 
-class CallCountSensor(NecPbxEntity, RestoreSensor):
-    """Calls (or missed calls) since midnight."""
+class _DailyTotal(NecPbxEntity, RestoreSensor):
+    """A total that starts again at midnight and survives restarts within the day."""
 
     _attr_state_class = SensorStateClass.TOTAL
-    _attr_native_unit_of_measurement = "calls"
 
-    def __init__(self, entry: NecPbxConfigEntry, key: str, *, missed_only: bool) -> None:
+    def __init__(self, entry: NecPbxConfigEntry, key: str) -> None:
         super().__init__(entry, key)
         self._attr_translation_key = key
-        self._attr_icon = "mdi:phone-missed" if missed_only else "mdi:phone"
-        self._missed_only = missed_only
-        self._count = 0
+        self._total = 0
         self._seen: SmdrRecord | None = None
         self._attr_last_reset = dt_util.start_of_local_day()
+
+    def _amount(self, record: SmdrRecord) -> int:
+        """How much one of today's calls adds; 0 to skip it."""
+        raise NotImplementedError
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -148,12 +150,12 @@ class CallCountSensor(NecPbxEntity, RestoreSensor):
                 else None
             )
             if last_reset and last_reset >= dt_util.start_of_local_day():
-                self._count = int(last.native_value or 0)
+                self._total = int(float(last.native_value or 0))
         self.async_on_remove(async_track_time_change(self.hass, self._midnight, 0, 0, 0))
 
     @callback
     def _midnight(self, _now: datetime) -> None:
-        self._count = 0
+        self._total = 0
         self._attr_last_reset = dt_util.start_of_local_day()
         self.async_write_ha_state()
 
@@ -162,16 +164,43 @@ class CallCountSensor(NecPbxEntity, RestoreSensor):
         record = self.data.last_call
         if record is not None and record is not self._seen:
             self._seen = record
-            today = dt_util.start_of_local_day()
-            if (record.start is None or record.start >= today) and (
-                not self._missed_only or record.missed
-            ):
-                self._count += 1
+            if record.start is None or record.start >= dt_util.start_of_local_day():
+                self._total += self._amount(record)
         super()._handle_update()
 
     @property
     def native_value(self) -> int:
-        return self._count
+        return self._total
+
+
+class CallCountSensor(_DailyTotal):
+    """Calls (or missed calls) since midnight."""
+
+    _attr_native_unit_of_measurement = "calls"
+
+    def __init__(self, entry: NecPbxConfigEntry, key: str, *, missed_only: bool) -> None:
+        super().__init__(entry, key)
+        self._attr_icon = "mdi:phone-missed" if missed_only else "mdi:phone"
+        self._missed_only = missed_only
+
+    def _amount(self, record: SmdrRecord) -> int:
+        return 0 if self._missed_only and not record.missed else 1
+
+
+class TalkTimeSensor(_DailyTotal):
+    """Time spent on answered calls since midnight, all lines together."""
+
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+    _attr_suggested_unit_of_measurement = UnitOfTime.MINUTES
+    _attr_suggested_display_precision = 0
+    _attr_icon = "mdi:phone-in-talk"
+
+    def __init__(self, entry: NecPbxConfigEntry) -> None:
+        super().__init__(entry, "talk_time_today")
+
+    def _amount(self, record: SmdrRecord) -> int:
+        return (record.duration or 0) if record.answered else 0
 
 
 class RecentCallsSensor(NecPbxEntity, SensorEntity):
@@ -179,6 +208,8 @@ class RecentCallsSensor(NecPbxEntity, SensorEntity):
 
     _attr_translation_key = "recent_calls"
     _attr_icon = "mdi:format-list-bulleted"
+    # The list changes with every call; keep it out of the recorder database.
+    _unrecorded_attributes = frozenset({"calls"})
 
     def __init__(self, entry: NecPbxConfigEntry) -> None:
         super().__init__(entry, "recent_calls")
@@ -202,6 +233,7 @@ class LastLineSensor(NecPbxEntity, SensorEntity):
 
     _attr_translation_key = "last_smdr_line"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _unrecorded_attributes = frozenset({"unreadable_lines"})
     _attr_icon = "mdi:text-long"
 
     def __init__(self, entry: NecPbxConfigEntry) -> None:

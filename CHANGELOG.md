@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- New **Talk time today** sensor: minutes spent on answered calls since midnight, with long-term statistics.
+- Every call now gets a readable **logbook** line under the phone system's name, like *missed call from Sam (0491570157) to Family, rang 21 s*.
+- A **Repairs** warning appears if the call log has been unreachable for 10 minutes, with the last error. It clears itself when the connection comes back.
+- Less database churn: the recent-calls list and the connection counters change with every call, so they're no longer written to the recorder.
+- Releases are published automatically when the version changes, and 0.1.0 and 0.1.1 now have releases too.
+
 ## 0.2.0
 
 - New **Call** event entity. Every finished call fires one event, typed `incoming`, `missed`, `outgoing`, `internal` or `other`, so you can pick them in the automation editor instead of typing event names. Each event carries the number, caller name, room, duration, ring time and line.

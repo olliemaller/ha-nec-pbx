@@ -8,8 +8,10 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
 from .client import SmdrClient
@@ -19,7 +21,9 @@ from .const import (
     DOMAIN,
     EVENT_CALL,
     EVENT_MISSED_CALL,
+    ISSUE_UNREACHABLE,
     LIVE_WINDOW,
+    OUTAGE_ISSUE_AFTER,
     RECENT_CALLS,
     SIGNAL_CALL,
     SIGNAL_UPDATE,
@@ -59,9 +63,53 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
     """Set up the PBX from a config entry."""
     extensions, phonebook = _options(entry)
     signal = SIGNAL_UPDATE.format(entry.entry_id)
+    issue_id = ISSUE_UNREACHABLE.format(entry.entry_id)
+    outage_timer: CALLBACK_TYPE | None = None
 
     @callback
-    def _on_state(_connected: bool) -> None:
+    def _raise_outage_issue(_now: object) -> None:
+        nonlocal outage_timer
+        outage_timer = None
+        client = entry.runtime_data.client
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="call_log_unreachable",
+            translation_placeholders={
+                "name": entry.title,
+                "address": f"{client.host}:{client.port}",
+                "error": client.last_error or "no answer",
+            },
+        )
+
+    @callback
+    def _watch_outage(connected: bool) -> None:
+        """Repairs issue after a long outage; cleared as soon as the call log is back."""
+        nonlocal outage_timer
+        if connected:
+            if outage_timer:
+                outage_timer()
+                outage_timer = None
+            ir.async_delete_issue(hass, DOMAIN, issue_id)
+        elif outage_timer is None:
+            outage_timer = async_call_later(
+                hass, OUTAGE_ISSUE_AFTER.total_seconds(), _raise_outage_issue
+            )
+
+    @callback
+    def _stop_watching() -> None:
+        nonlocal outage_timer
+        if outage_timer:
+            outage_timer()
+            outage_timer = None
+        ir.async_delete_issue(hass, DOMAIN, issue_id)
+
+    @callback
+    def _on_state(connected: bool) -> None:
+        _watch_outage(connected)
         async_dispatcher_send(hass, signal)
 
     @callback
@@ -108,6 +156,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     client.start()
+    _watch_outage(False)  # starts the clock until the first connection
+    entry.async_on_unload(_stop_watching)
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     return True
 

@@ -29,6 +29,8 @@ class NecPbxConnection(NecPbxEntity, BinarySensorEntity):
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_translation_key = "call_log"
+    # These change with every line; keep them out of the recorder database.
+    _unrecorded_attributes = frozenset({"lines_received", "last_error"})
 
     def __init__(self, entry: NecPbxConfigEntry) -> None:
         super().__init__(entry, "connection")

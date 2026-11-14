@@ -25,6 +25,10 @@ RECENT_CALLS: Final = 20
 # within this window fire events, so a reconnect never re-announces old calls.
 LIVE_WINDOW: Final = timedelta(minutes=15)
 
+# Raise a Repairs issue when the call log has been unreachable this long.
+OUTAGE_ISSUE_AFTER: Final = timedelta(minutes=10)
+ISSUE_UNREACHABLE: Final = "call_log_unreachable_{}"
+
 # Reconnect back-off (seconds).
 RECONNECT_MIN: Final = 5
 RECONNECT_MAX: Final = 300
