@@ -133,9 +133,7 @@ async def test_calls_update_sensors_and_fire_events(hass: HomeAssistant, pbx: Fa
     last = hass.states.get("sensor.teak_phones_last_call")
     assert last.attributes["number"] == "0491570157"
     assert last.attributes["missed"] is True
-    assert (
-        hass.states.get("sensor.teak_phones_last_missed_call").attributes["caller_name"] == "Sam"
-    )
+    assert hass.states.get("sensor.teak_phones_last_missed_call").attributes["caller_name"] == "Sam"
     assert hass.states.get("sensor.teak_phones_calls_today").state == "2"
     assert hass.states.get("sensor.teak_phones_missed_calls_today").state == "1"
     assert hass.states.get("sensor.teak_phones_recent_calls").state == "2"
@@ -240,8 +238,6 @@ async def test_replayed_calls_are_not_announced(hass: HomeAssistant, pbx: FakePb
     assert hass.states.get("sensor.teak_phones_calls_today").state == "0"
     assert hass.states.get("sensor.teak_phones_missed_calls_today").state == "0"
     # The history still shows it.
-    assert (
-        hass.states.get("sensor.teak_phones_last_missed_call").attributes["caller_name"] == "Sam"
-    )
+    assert hass.states.get("sensor.teak_phones_last_missed_call").attributes["caller_name"] == "Sam"
     assert hass.states.get("sensor.teak_phones_recent_calls").state == "1"
     assert await hass.config_entries.async_unload(entry.entry_id)

@@ -52,7 +52,7 @@ Each event carries `start`, `number`, `caller_name`, `station`, `station_name`, 
 
 ## Logbook
 
-Every call gets a line in the logbook under the phone system's name, for example *Teak phones: missed call from Sam (0491570157) to Family, rang 21 s* or *Teak phones: Oliver called Alex (0491570156), 2 min 35 s*. Calls the phone system replays after a reconnect don't add logbook lines.
+Every call gets a line in the logbook under the phone system's name, for example *House phones: missed call from Sam (0491570157) to Family, rang 21 s* or *House phones: Oliver called Alex (0491570156), 2 min 35 s*. Calls the phone system replays after a reconnect don't add logbook lines.
 
 ## Repairs
 

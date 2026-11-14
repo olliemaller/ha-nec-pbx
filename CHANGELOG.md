@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- The phonebook example in the options, the docs and the tests now use fictional numbers from the range set aside for that (0491 570 xxx) and made-up names.
+
 ## 0.3.0
 
 - New **Talk time today** sensor: minutes spent on answered calls since midnight, with long-term statistics.

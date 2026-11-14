@@ -17,7 +17,7 @@ from custom_components.nec_pbx.smdr import (
 )
 
 NOW = datetime(2026, 11, 10, 18, 30)
-EXTS = {"101": "Rumpus", "103": "Oliver", "104": "Family", "106": "Maxwell"}
+EXTS = {"101": "Rumpus", "103": "Oliver", "104": "Family", "106": "Jordan"}
 BOOK = {"0491570156": "Alex", "0491570157": "Sam"}
 
 
@@ -108,11 +108,11 @@ def test_internal_call_without_number() -> None:
 
 
 def test_station_found_by_name() -> None:
-    line = "IC 0005  10:00  001   00:01:10  Maxwell   0491570156"
+    line = "IC 0005  10:00  001   00:01:10  Jordan   0491570156"
     rec = parse_line(line, extensions=EXTS, phonebook=BOOK, now=NOW)
     assert rec is not None
     assert rec.station == "106"
-    assert rec.station_name == "Maxwell"
+    assert rec.station_name == "Jordan"
 
 
 def test_never_raises_on_garbage() -> None:
