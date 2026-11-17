@@ -1,0 +1,7 @@
+{
+  "services": {
+    "save_caller": {
+      "service": "mdi:account-plus"
+    }
+  }
+}

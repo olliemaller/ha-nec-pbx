@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+
+**New**
+
+- **Phonebook from a Home Assistant to-do list.** Pick a to-do list under **Configure** and its items become phonebook entries: a name with the number in the description, or "Alex 0491 570 156" as the item. Add or change contacts from the Home Assistant app's To-do lists and calls pick up the names straight away. The phonebook in the options still works and wins for the same number.
+- **New action `nec_pbx.save_caller`:** saves a name and number to the phonebook list (or the options' phonebook). Leave the number empty to save the last incoming caller, for example from a notification button.
+
 ## 0.5.0
 
 **New**

@@ -98,3 +98,20 @@ async def test_outage_raises_and_clears_a_repair(hass: HomeAssistant, pbx: FakeP
             await pbx.connected.wait()
         await _wait(hass, lambda: registry.async_get_issue(DOMAIN, issue_id) is None, timeout=5)
         assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+def test_phonebook_from_todo_items() -> None:
+    from custom_components.nec_pbx import parse_todo_items
+
+    items = [
+        {"summary": "Alex", "description": "0491 570 156"},
+        {"summary": "Sam 0491 570 157"},
+        {"summary": "Mum: +61 491 570 006"},
+        {"summary": "Buy milk"},
+        {"summary": "", "description": "0491570158"},
+    ]
+    assert parse_todo_items(items) == {
+        "0491570156": "Alex",
+        "0491570157": "Sam",
+        "0491570006": "Mum",
+    }

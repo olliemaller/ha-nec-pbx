@@ -67,6 +67,16 @@ Open the integration and choose **Configure**. Enter one entry per line as `numb
 
 Saving reloads the integration.
 
+### Phonebook from a to-do list
+
+Home Assistant's people don't have phone numbers, so the phonebook can come from a **to-do list** instead, which you can edit from the Home Assistant app:
+
+1. **Settings > Devices & services > Add integration > Local to-do**, named for example *Phonebook*.
+2. Add one item per person: the name as the item and the number in the description (or `Alex 0491 570 156` as the item).
+3. **Configure** the NEC PBX integration and choose the list under **Phonebook list**.
+
+Changes to the list are picked up straight away. The action `nec_pbx.save_caller` adds a name for the last incoming caller (or a number you give).
+
 ## 4. Live calls from FreePBX (optional)
 
 1. In FreePBX: **Settings > Asterisk Manager Users > Add Manager**.

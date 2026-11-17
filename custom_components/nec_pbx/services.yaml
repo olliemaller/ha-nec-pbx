@@ -1,0 +1,15 @@
+save_caller:
+  fields:
+    name:
+      required: true
+      example: Alex
+      selector:
+        text:
+    number:
+      example: "0491 570 156"
+      selector:
+        text:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: nec_pbx

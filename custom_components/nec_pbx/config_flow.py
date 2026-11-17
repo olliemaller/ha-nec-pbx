@@ -27,6 +27,7 @@ from .const import (
     CONF_EXTENSIONS,
     CONF_LINES,
     CONF_PHONEBOOK,
+    CONF_PHONEBOOK_TODO,
     DEFAULT_NAME,
     DEFAULT_PORT,
     DOMAIN,
@@ -154,6 +155,10 @@ class NecPbxOptionsFlow(OptionsFlow):
                         CONF_PHONEBOOK,
                         description={"suggested_value": current.get(CONF_PHONEBOOK, "")},
                     ): _TEXTAREA,
+                    vol.Optional(
+                        CONF_PHONEBOOK_TODO,
+                        description={"suggested_value": current.get(CONF_PHONEBOOK_TODO)},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="todo")),
                     vol.Optional(
                         CONF_LINES,
                         description={"suggested_value": current.get(CONF_LINES, "")},

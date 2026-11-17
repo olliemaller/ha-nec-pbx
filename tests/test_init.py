@@ -384,3 +384,57 @@ def test_period_starts() -> None:
     assert period_start(DAY, now).date().isoformat() == "2026-11-19"
     assert period_start(WEEK, now).date().isoformat() == "2026-11-16"  # Monday
     assert period_start(MONTH, now).date().isoformat() == "2026-11-01"
+
+
+async def test_phonebook_from_todo_list_and_save_caller(hass: HomeAssistant, pbx: FakePbx) -> None:
+    from homeassistant.core import ServiceCall, SupportsResponse
+
+    from custom_components.nec_pbx.const import CONF_PHONEBOOK_TODO
+
+    items = [
+        {"summary": "Jordan", "description": "0491 570 199", "uid": "1", "status": "needs_action"}
+    ]
+
+    async def get_items(call: ServiceCall):
+        return {"todo.phonebook": {"items": list(items)}}
+
+    async def add_item(call: ServiceCall) -> None:
+        items.append(
+            {"summary": call.data["item"], "description": call.data.get("description"), "uid": "2"}
+        )
+        hass.states.async_set("todo.phonebook", str(len(items)))
+
+    hass.services.async_register(
+        "todo", "get_items", get_items, supports_response=SupportsResponse.ONLY
+    )
+    hass.services.async_register("todo", "add_item", add_item)
+    hass.states.async_set("todo.phonebook", "1")
+    calls = async_capture_events(hass, EVENT_CALL)
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Teak phones",
+        data={CONF_HOST: "127.0.0.1", CONF_PORT: pbx.port},
+        options={CONF_EXTENSIONS: "103: Oliver", CONF_PHONEBOOK_TODO: "todo.phonebook"},
+        unique_id=f"127.0.0.1:{pbx.port}",
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    async with asyncio.timeout(3):
+        await pbx.connected.wait()
+    await _wait(hass, lambda: entry.runtime_data.phonebook.get("0491570199") == "Jordan")
+
+    await pbx.send(f"IC 0001  {_hm(3)}  001   00:01:00  103   0491570199   0:05\r\n")
+    await pbx.send(f"IC 0002  {_hm(2)}  001   00:00:30  103   0491570123   0:04\r\n")
+    await _wait(hass, lambda: len(calls) == 2)
+    assert calls[0].data["caller_name"] == "Jordan"
+    assert calls[1].data["caller_name"] is None
+
+    # Save the last caller from a notification button or the UI.
+    result = await hass.services.async_call(
+        DOMAIN, "save_caller", {"name": "Plumber"}, blocking=True, return_response=True
+    )
+    assert result == {"name": "Plumber", "number": "0491570123"}
+    assert items[-1] == {"summary": "Plumber", "description": "0491570123", "uid": "2"}
+    await _wait(hass, lambda: entry.runtime_data.phonebook.get("0491570123") == "Plumber")
+    assert await hass.config_entries.async_unload(entry.entry_id)

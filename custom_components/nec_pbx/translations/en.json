@@ -44,7 +44,8 @@
           "ami_port": "FreePBX manager port",
           "ami_user": "FreePBX manager user",
           "ami_secret": "FreePBX manager password",
-          "dnd_extensions": "Do-not-disturb switches for"
+          "dnd_extensions": "Do-not-disturb switches for",
+          "phonebook_todo": "Phonebook list"
         },
         "data_description": {
           "extensions": "For example `103: Oliver`.",
@@ -55,7 +56,8 @@
           "ami_port": "Usually 5038.",
           "ami_user": "A manager user from FreePBX: Settings > Asterisk Manager Users. It needs read access to call and system, and write access to system for do-not-disturb.",
           "ami_secret": "That manager user's password.",
-          "dnd_extensions": "FreePBX extensions that get a do-not-disturb switch, comma separated, for example `901, 902`."
+          "dnd_extensions": "FreePBX extensions that get a do-not-disturb switch, comma separated, for example `901, 902`.",
+          "phonebook_todo": "Optional. A Home Assistant to-do list used as a phonebook, so you can add contacts from the phone app: one item per person with their number in the description (or \"Alex 0491 570 156\" as the item). The phonebook above wins for the same number."
         }
       }
     },
@@ -199,6 +201,26 @@
         "auto": "Automatic",
         "dmy": "Day/month (Australia, UK)",
         "mdy": "Month/day (North America)"
+      }
+    }
+  },
+  "services": {
+    "save_caller": {
+      "name": "Save caller to phonebook",
+      "description": "Adds a name and number to the phonebook list (or the phonebook in the options if there is no list). Without a number, it saves the last incoming caller.",
+      "fields": {
+        "name": {
+          "name": "Name",
+          "description": "Who it is."
+        },
+        "number": {
+          "name": "Number",
+          "description": "Leave empty to save the last incoming caller."
+        },
+        "config_entry_id": {
+          "name": "Phone system",
+          "description": "Only needed if you have more than one."
+        }
       }
     }
   }

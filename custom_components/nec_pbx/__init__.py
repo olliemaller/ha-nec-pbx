@@ -5,15 +5,26 @@ from __future__ import annotations
 from collections import OrderedDict, deque
 from dataclasses import dataclass, field
 import logging
+import re
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
-from homeassistant.helpers import issue_registry as ir
+from homeassistant.core import (
+    CALLBACK_TYPE,
+    Event,
+    HomeAssistant,
+    ServiceCall,
+    SupportsResponse,
+    callback,
+)
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers import config_validation as cv, issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
-from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 from homeassistant.helpers.storage import Store
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
+import voluptuous as vol
 
 from .ami import DEFAULT_AMI_PORT, AmiClient, LiveCall
 from .client import SmdrClient
@@ -26,6 +37,7 @@ from .const import (
     CONF_EXTENSIONS,
     CONF_LINES,
     CONF_PHONEBOOK,
+    CONF_PHONEBOOK_TODO,
     DOMAIN,
     EVENT_CALL,
     EVENT_LIVE,
@@ -37,13 +49,22 @@ from .const import (
     OUTAGE_ISSUE_AFTER,
     RECENT_CALLS,
     SEEN_LINES,
+    SERVICE_SAVE_CALLER,
     SIGNAL_CALL,
     SIGNAL_LIVE,
     SIGNAL_NEW_RECORD,
     SIGNAL_UPDATE,
     STORAGE_VERSION,
 )
-from .smdr import DATE_AUTO, SmdrRecord, lookup_name, parse_line, parse_mapping
+from .smdr import (
+    DATE_AUTO,
+    DIRECTION_INCOMING,
+    SmdrRecord,
+    lookup_name,
+    normalise_number,
+    parse_line,
+    parse_mapping,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -80,6 +101,8 @@ class NecPbxData:
     history: list[dict] = field(default_factory=list)
     ami: AmiClient | None = None
     last_live: LiveCall | None = None
+    manual_phonebook: dict[str, str] = field(default_factory=dict)
+    todo_phonebook: dict[str, str] = field(default_factory=dict)
 
 
 type NecPbxConfigEntry = ConfigEntry[NecPbxData]
@@ -94,6 +117,98 @@ def _newer(record: SmdrRecord, current: SmdrRecord | None) -> bool:
     if current is None or current.start is None or record.start is None:
         return True
     return record.start >= current.start
+
+
+_RE_PHONE = re.compile(r"\+?\d[\d ()-]{5,}\d")
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+def parse_todo_items(items: list[dict]) -> dict[str, str]:
+    """Phonebook entries from to-do items: "Alex" with "0491 570 156" in the
+    description, or "Alex 0491 570 156" / "Alex: 0491 570 156" as the item itself."""
+    book: dict[str, str] = {}
+    for item in items:
+        summary = str(item.get("summary") or "").strip()
+        description = str(item.get("description") or "").strip()
+        name = summary
+        match = _RE_PHONE.search(description)
+        if match is None:
+            match = _RE_PHONE.search(summary)
+            if match is None:
+                continue
+            name = summary.replace(match.group(0), "")
+        name = name.strip(" :-,\t")
+        if name:
+            book[normalise_number(match.group(0))] = name
+    return book
+
+
+def _merge_phonebook(data: NecPbxData) -> None:
+    """The options' phonebook wins over the to-do list for the same number."""
+    data.phonebook = {**data.todo_phonebook, **data.manual_phonebook}
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register the save-caller action."""
+
+    async def save_caller(call: ServiceCall) -> dict:
+        entries = list(hass.config_entries.async_loaded_entries(DOMAIN))
+        if entry_id := call.data.get("config_entry_id"):
+            entries = [e for e in entries if e.entry_id == entry_id]
+        if not entries:
+            raise ServiceValidationError("No NEC PBX is set up")
+        entry: NecPbxConfigEntry = entries[0]
+        data = entry.runtime_data
+        number = call.data.get("number")
+        if not number:
+            last = next(
+                (r for r in data.recent if r.direction == DIRECTION_INCOMING and r.number), None
+            )
+            if last is None:
+                raise ServiceValidationError("No incoming call with a number to save yet")
+            number = last.number
+        if number.upper().endswith("X"):
+            raise ServiceValidationError(
+                f"{number} is hidden by the phone system and can't be saved"
+            )
+        name = call.data["name"].strip()
+        todo = entry.options.get(CONF_PHONEBOOK_TODO)
+        if todo:
+            await hass.services.async_call(
+                "todo",
+                "add_item",
+                {"entity_id": todo, "item": name, "description": number},
+                blocking=True,
+            )
+        else:
+            text = entry.options.get(CONF_PHONEBOOK, "")
+            line = f"{normalise_number(number)}: {name}"
+            hass.config_entries.async_update_entry(
+                entry, options={**entry.options, CONF_PHONEBOOK: f"{text}\n{line}".strip()}
+            )
+        key = normalise_number(number)
+        if todo:
+            data.todo_phonebook[key] = name  # the list's own update refreshes it too
+        else:
+            data.manual_phonebook[key] = name  # the options change reloads the integration
+        _merge_phonebook(data)
+        return {"name": name, "number": number}
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SAVE_CALLER,
+        save_caller,
+        schema=vol.Schema(
+            {
+                vol.Required("name"): cv.string,
+                vol.Optional("number"): cv.string,
+                vol.Optional("config_entry_id"): cv.string,
+            }
+        ),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    return True
 
 
 def _options(entry: ConfigEntry) -> tuple[dict[str, str], dict[str, str]]:
@@ -237,7 +352,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
         seen=seen,
         lines=parse_mapping(entry.options.get(CONF_LINES, "")),
         history=history,
+        manual_phonebook=dict(phonebook),
     )
+
+    if todo_entity := entry.options.get(CONF_PHONEBOOK_TODO):
+
+        async def _load_todo(_event: Event | None = None) -> None:
+            if hass.states.get(todo_entity) is None:
+                return  # the list isn't loaded yet; its first state change brings us back
+            try:
+                response = await hass.services.async_call(
+                    "todo",
+                    "get_items",
+                    {"entity_id": todo_entity, "status": ["needs_action", "completed"]},
+                    blocking=True,
+                    return_response=True,
+                )
+            except (HomeAssistantError, vol.Invalid) as err:
+                _LOGGER.warning("Couldn't read the phonebook list %s: %s", todo_entity, err)
+                return
+            items = (response or {}).get(todo_entity, {}).get("items", [])
+            data = entry.runtime_data
+            data.todo_phonebook = parse_todo_items(items)
+            _merge_phonebook(data)
+            _LOGGER.debug("Phonebook: %d entries from %s", len(data.todo_phonebook), todo_entity)
+            async_dispatcher_send(hass, signal)
+
+        entry.async_on_unload(async_track_state_change_event(hass, [todo_entity], _load_todo))
+        entry.async_create_background_task(hass, _load_todo(), "nec_pbx phonebook")
 
     if entry.options.get(CONF_AMI_HOST):
 

@@ -53,7 +53,7 @@
 | **Logbook** | A readable line for every call, like *missed call from Sam to Family, rang 21 s*. |
 | **Repairs** | A warning if the call log has been unreachable for 10 minutes, cleared by itself when it's back. |
 | **Recent calls** | The last 20 calls as a list, ready for a dashboard card. |
-| **Names, not numbers** | A phonebook in the options puts names on callers. |
+| **Names, not numbers** | A phonebook in the options, or a Home Assistant to-do list you edit from your phone, puts names on callers. `nec_pbx.save_caller` adds the last caller. |
 | **[Automations](https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/Automations.md)** | `nec_pbx_call` and `nec_pbx_missed_call` events with everything about the call. |
 | **Fast and local** | Pushed from the phone system the moment a call ends. Notices a dead connection within about 90 seconds and reconnects by itself. No cloud. |
 | **Both NEC layouts** | Reads the `IC/OG` layout and the SV9100-style `PIN/POT/PTRS/IVIN` layout, with day/month or month/day dates (automatic, or set it under **Configure**). |

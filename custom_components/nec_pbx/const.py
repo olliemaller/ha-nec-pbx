@@ -9,6 +9,9 @@ DOMAIN: Final = "nec_pbx"
 
 CONF_EXTENSIONS: Final = "extensions"
 CONF_PHONEBOOK: Final = "phonebook"
+# A Home Assistant to-do list used as a phonebook: each item is a name with a number.
+CONF_PHONEBOOK_TODO: Final = "phonebook_todo"
+SERVICE_SAVE_CALLER: Final = "save_caller"
 CONF_DATE_ORDER: Final = "date_order"
 CONF_LINES: Final = "lines"  # "001: Main line" - trunk numbers to names
 # Optional FreePBX / Asterisk manager connection for live ringing.
