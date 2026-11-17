@@ -241,3 +241,71 @@ async def test_replayed_calls_are_not_announced(hass: HomeAssistant, pbx: FakePb
     assert hass.states.get("sensor.teak_phones_last_missed_call").attributes["caller_name"] == "Sam"
     assert hass.states.get("sensor.teak_phones_recent_calls").state == "1"
     assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_replay_after_reconnect_is_not_counted_twice(
+    hass: HomeAssistant, pbx: FakePbx
+) -> None:
+    """The SL2100 prints today's calls again when the client reconnects."""
+    with patch("custom_components.nec_pbx.client.RECONNECT_MIN", 0.05):
+        calls = async_capture_events(hass, EVENT_CALL)
+        entry = await _setup(hass, pbx)
+        first = f"IC 0001  {_hm(6)}  001   00:02:35  103   0491570156   0:08\r\n"
+        second = f"IC 0002  {_hm(2)}  001   00:01:00  104   0491570157   0:05\r\n"
+        await pbx.send(first)
+        await pbx.send(second)
+        await _wait(hass, lambda: len(calls) == 2)
+        assert hass.states.get("sensor.teak_phones_calls_today").state == "2"
+
+        await pbx.drop_clients()
+        async with asyncio.timeout(3):
+            await pbx.connected.wait()
+        # Replay, oldest first, with different spacing.
+        await pbx.send(first.replace("   ", "  "))
+        await pbx.send(second)
+        await _wait(hass, lambda: entry.runtime_data.replayed_lines == 2)
+
+        assert len(calls) == 2
+        assert hass.states.get("sensor.teak_phones_calls_today").state == "2"
+        assert hass.states.get("sensor.teak_phones_recent_calls").state == "2"
+        # The last call is still the newest one, not the replayed older call.
+        assert hass.states.get("sensor.teak_phones_last_call").attributes["station"] == "104"
+        assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_seen_lines_survive_a_reload(hass: HomeAssistant, pbx: FakePbx) -> None:
+    calls = async_capture_events(hass, EVENT_CALL)
+    entry = await _setup(hass, pbx)
+    line = f"OG 0001  {_hm(3)}  001   00:00:40  103   0491570156\r\n"
+    await pbx.send(line)
+    await _wait(hass, lambda: len(calls) == 1)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    await pbx.drop_clients()
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    async with asyncio.timeout(3):
+        await pbx.connected.wait()
+    await pbx.send(line)
+    await _wait(hass, lambda: entry.runtime_data.replayed_lines == 1)
+    assert len(calls) == 1
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_sv9100_style_incoming_is_missed_call_aware(
+    hass: HomeAssistant, pbx: FakePbx
+) -> None:
+    calls = async_capture_events(hass, EVENT_CALL)
+    entry = await _setup(hass, pbx)
+    today = dt_util.now().strftime("%m/%d")  # this layout prints month/day
+    await pbx.send(f"PIN  {_hm(2)} {today} 001  00:03:12 104        0491570157\r\n")
+    await _wait(hass, lambda: len(calls) == 1)
+    assert calls[0].data["direction"] == "incoming"
+    assert calls[0].data["station_name"] == "Family"
+    await pbx.send(f"POT  {_hm(1)} {today} 002  00:00:45 205        0491570156\r\n")
+    await _wait(hass, lambda: len(calls) == 2)
+    assert calls[1].data["direction"] == "outgoing"
+    state = hass.states.get("sensor.teak_phones_last_call_log_line")
+    assert state.attributes["unnamed_extensions"] == ["205"]
+    assert await hass.config_entries.async_unload(entry.entry_id)

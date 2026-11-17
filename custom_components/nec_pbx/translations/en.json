@@ -37,11 +37,13 @@
         "description": "One entry per line as `number: name`. Each extension listed gets its own last-call sensor.",
         "data": {
           "extensions": "Extensions",
-          "phonebook": "Phonebook"
+          "phonebook": "Phonebook",
+          "date_order": "Date order in the call log"
         },
         "data_description": {
           "extensions": "For example `103: Oliver`.",
-          "phonebook": "For example `0491570156: Alex`. Used to put names on calls."
+          "phonebook": "For example `0491570156: Alex`. Used to put names on calls.",
+          "date_order": "How your phone system prints dates. Automatic works it out from each call; pick one if your dates look wrong."
         }
       }
     },
@@ -102,6 +104,15 @@
     "call_log_unreachable": {
       "title": "{name}: call log not connected",
       "description": "Home Assistant hasn't been able to read the call log from the phone system at {address} for over 10 minutes (last error: {error}).\n\nCalls made in the meantime aren't lost: the phone system keeps them and sends them when the connection comes back. Check that the phone system is on, that its address hasn't changed, and that no other program (such as call-logging software) is connected to the SMDR port. This message clears itself once the call log reconnects."
+    }
+  },
+  "selector": {
+    "date_order": {
+      "options": {
+        "auto": "Automatic",
+        "dmy": "Day/month (Australia, UK)",
+        "mdy": "Month/day (North America)"
+      }
     }
   }
 }

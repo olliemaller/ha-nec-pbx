@@ -46,13 +46,14 @@
 | **Missed calls** | A "Last missed call" sensor, and a [ready-made blueprint](https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/Automations.md#missed-call-blueprint) that notifies your phone. |
 | **Call event** | One **Call** event per finished call, typed incoming, missed, outgoing or internal, ready to pick in the automation editor. |
 | **Every room** | A "last call" sensor for each extension you name, such as *Oliver last call*. |
-| **Daily counts** | Calls today, missed calls today and talk time today, reset at midnight. |
+| **Daily counts** | Calls today, missed calls today and talk time today, reset at midnight. Calls the phone system prints again after a reconnect or restart are never counted twice. |
 | **Logbook** | A readable line for every call, like *missed call from Sam to Family, rang 21 s*. |
 | **Repairs** | A warning if the call log has been unreachable for 10 minutes, cleared by itself when it's back. |
 | **Recent calls** | The last 20 calls as a list, ready for a dashboard card. |
 | **Names, not numbers** | A phonebook in the options puts names on callers. |
 | **[Automations](https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/Automations.md)** | `nec_pbx_call` and `nec_pbx_missed_call` events with everything about the call. |
-| **Fast and local** | Pushed from the phone system the moment a call ends. Reconnects by itself. No cloud. |
+| **Fast and local** | Pushed from the phone system the moment a call ends. Notices a dead connection within about 90 seconds and reconnects by itself. No cloud. |
+| **Both NEC layouts** | Reads the `IC/OG` layout and the SV9100-style `PIN/POT/PTRS/IVIN` layout, with day/month or month/day dates (automatic, or set it under **Configure**). |
 | **Private diagnostics** | Phone numbers are masked in diagnostics, so you can share them safely. |
 
 ## Quick start

@@ -16,10 +16,24 @@ from homeassistant.helpers import selector
 import voluptuous as vol
 
 from .client import async_probe
-from .const import CONF_EXTENSIONS, CONF_PHONEBOOK, DEFAULT_NAME, DEFAULT_PORT, DOMAIN
-from .smdr import parse_mapping
+from .const import (
+    CONF_DATE_ORDER,
+    CONF_EXTENSIONS,
+    CONF_PHONEBOOK,
+    DEFAULT_NAME,
+    DEFAULT_PORT,
+    DOMAIN,
+)
+from .smdr import DATE_AUTO, DATE_ORDERS, parse_mapping
 
 _TEXTAREA = selector.TextSelector(selector.TextSelectorConfig(multiline=True))
+_DATE_ORDER = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=list(DATE_ORDERS),
+        translation_key=CONF_DATE_ORDER,
+        mode=selector.SelectSelectorMode.DROPDOWN,
+    )
+)
 
 
 def _user_schema(defaults: dict[str, Any]) -> vol.Schema:
@@ -121,6 +135,9 @@ class NecPbxOptionsFlow(OptionsFlow):
                         CONF_PHONEBOOK,
                         description={"suggested_value": current.get(CONF_PHONEBOOK, "")},
                     ): _TEXTAREA,
+                    vol.Required(
+                        CONF_DATE_ORDER, default=current.get(CONF_DATE_ORDER, DATE_AUTO)
+                    ): _DATE_ORDER,
                 }
             ),
             errors=errors,

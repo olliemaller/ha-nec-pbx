@@ -13,11 +13,13 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.util import dt as dt_util
 
 from . import NecPbxConfigEntry
+from .const import SIGNAL_NEW_RECORD
 from .entity import NecPbxEntity
 from .smdr import SmdrRecord
 
@@ -133,7 +135,6 @@ class _DailyTotal(NecPbxEntity, RestoreSensor):
         super().__init__(entry, key)
         self._attr_translation_key = key
         self._total = 0
-        self._seen: SmdrRecord | None = None
         self._attr_last_reset = dt_util.start_of_local_day()
 
     def _amount(self, record: SmdrRecord) -> int:
@@ -152,6 +153,11 @@ class _DailyTotal(NecPbxEntity, RestoreSensor):
             if last_reset and last_reset >= dt_util.start_of_local_day():
                 self._total = int(float(last.native_value or 0))
         self.async_on_remove(async_track_time_change(self.hass, self._midnight, 0, 0, 0))
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass, SIGNAL_NEW_RECORD.format(self._entry.entry_id), self._new_record
+            )
+        )
 
     @callback
     def _midnight(self, _now: datetime) -> None:
@@ -160,13 +166,13 @@ class _DailyTotal(NecPbxEntity, RestoreSensor):
         self.async_write_ha_state()
 
     @callback
-    def _handle_update(self) -> None:
-        record = self.data.last_call
-        if record is not None and record is not self._seen:
-            self._seen = record
-            if record.start is None or record.start >= dt_util.start_of_local_day():
-                self._total += self._amount(record)
-        super()._handle_update()
+    def _new_record(self, record: SmdrRecord) -> None:
+        """Count a call the first time it is seen; replays never arrive here."""
+        if record.start is None or record.start >= dt_util.start_of_local_day():
+            amount = self._amount(record)
+            if amount:
+                self._total += amount
+                self.async_write_ha_state()
 
     @property
     def native_value(self) -> int:
@@ -233,7 +239,7 @@ class LastLineSensor(NecPbxEntity, SensorEntity):
 
     _attr_translation_key = "last_smdr_line"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _unrecorded_attributes = frozenset({"unreadable_lines"})
+    _unrecorded_attributes = frozenset({"unreadable_lines", "repeated_lines", "unnamed_extensions"})
     _attr_icon = "mdi:text-long"
 
     def __init__(self, entry: NecPbxConfigEntry) -> None:
@@ -246,4 +252,10 @@ class LastLineSensor(NecPbxEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        return {"unreadable_lines": self.data.unparsed_lines}
+        return {
+            "unreadable_lines": self.data.unparsed_lines,
+            # Calls the phone system printed again (replayed on reconnect); not counted twice.
+            "repeated_lines": self.data.replayed_lines,
+            # Extensions seen in calls with no name in the options yet.
+            "unnamed_extensions": sorted(self.data.unnamed_stations),
+        }

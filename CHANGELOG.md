@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0
+
+**Fixed**
+
+- **Calls were counted twice after a reconnect or restart.** The phone system prints its stored calls again whenever Home Assistant connects, and those were added to *Calls today*, *Missed calls today* and *Talk time today* a second time. They could also move *Last call* back to an older call and repeat calls in the recent list. Calls are now remembered (and the list is saved across restarts), so a call is only ever counted and announced once.
+- **SV9100-style call types weren't recognised.** In the `PIN` / `POT` layout, incoming calls (`PIN`, `IVIN`) were read as outgoing, so missed-call alerts couldn't fire. `PIN`, `IVIN`, `PTRS` (transferred, marked `transferred`), `POT` and `POTA` are now read correctly.
+- **Month/day dates were read as day/month.** A call on 5 November printed as `11/05` was read as 11 May, so it looked old and fired no event. Dates are now read in whichever order gives a date that isn't in the future, or in the order you pick under **Configure** (*Date order in the call log*).
+- **A dead connection wasn't noticed.** If the phone system rebooted or the network dropped without closing the connection, the integration could stay "connected" and log nothing. TCP keepalive now notices within about 90 seconds and reconnects.
+
+**New**
+
+- The *Last call log line* diagnostic sensor lists **extensions seen in calls that have no name yet**, and how many repeated lines were skipped. Both are in the diagnostics too.
+
 ## 0.3.1
 
 - The phonebook example in the options, the docs and the tests now use fictional numbers from the range set aside for that (0491 570 xxx) and made-up names.

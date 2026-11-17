@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections import deque
+from collections import OrderedDict, deque
 from dataclasses import dataclass, field
 import logging
 
@@ -12,10 +12,12 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .client import SmdrClient
 from .const import (
+    CONF_DATE_ORDER,
     CONF_EXTENSIONS,
     CONF_PHONEBOOK,
     DOMAIN,
@@ -25,10 +27,13 @@ from .const import (
     LIVE_WINDOW,
     OUTAGE_ISSUE_AFTER,
     RECENT_CALLS,
+    SEEN_LINES,
     SIGNAL_CALL,
+    SIGNAL_NEW_RECORD,
     SIGNAL_UPDATE,
+    STORAGE_VERSION,
 )
-from .smdr import SmdrRecord, parse_line, parse_mapping
+from .smdr import DATE_AUTO, SmdrRecord, parse_line, parse_mapping
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,9 +53,26 @@ class NecPbxData:
     last_by_station: dict[str, SmdrRecord] = field(default_factory=dict)
     last_raw: str | None = None
     unparsed_lines: int = 0
+    date_order: str = DATE_AUTO
+    # Lines already counted (normalised), oldest first; saved across restarts.
+    seen: OrderedDict[str, None] = field(default_factory=OrderedDict)
+    replayed_lines: int = 0
+    # Extensions that made or took calls but have no name in the options.
+    unnamed_stations: set[str] = field(default_factory=set)
 
 
 type NecPbxConfigEntry = ConfigEntry[NecPbxData]
+
+
+def line_key(line: str) -> str:
+    """The same call printed twice (live, then replayed) gives the same key."""
+    return " ".join(line.split()).upper()
+
+
+def _newer(record: SmdrRecord, current: SmdrRecord | None) -> bool:
+    if current is None or current.start is None or record.start is None:
+        return True
+    return record.start >= current.start
 
 
 def _options(entry: ConfigEntry) -> tuple[dict[str, str], dict[str, str]]:
@@ -65,6 +87,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
     signal = SIGNAL_UPDATE.format(entry.entry_id)
     issue_id = ISSUE_UNREACHABLE.format(entry.entry_id)
     outage_timer: CALLBACK_TYPE | None = None
+    store: Store[dict[str, list[str]]] = Store(
+        hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.seen"
+    )
+    stored = await store.async_load() or {}
+    seen: OrderedDict[str, None] = OrderedDict.fromkeys(stored.get("lines", [])[-SEEN_LINES:])
+
+    @callback
+    def _seen_data() -> dict[str, list[str]]:
+        return {"lines": list(entry.runtime_data.seen)}
 
     @callback
     def _raise_outage_issue(_now: object) -> None:
@@ -121,6 +152,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
             extensions=data.extensions,
             phonebook=data.phonebook,
             now=dt_util.now(),
+            date_order=data.date_order,
         )
         if record is None:
             _LOGGER.debug("Ignored SMDR line (header or summary): %r", line)
@@ -135,24 +167,56 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
             return
         if record.start is None:
             record.start = dt_util.now()
-        data.recent.appendleft(record)
-        data.last_call = record
+        key = line_key(line)
+        first_time = key not in data.seen
+        if first_time:
+            data.seen[key] = None
+            while len(data.seen) > SEEN_LINES:
+                data.seen.popitem(last=False)
+            store.async_delay_save(_seen_data, 10)
+        else:
+            data.replayed_lines += 1
+        if not any(line_key(r.raw) == key for r in data.recent):
+            data.recent.appendleft(record)
+            data.recent = deque(
+                sorted(data.recent, key=lambda r: r.start or dt_util.now(), reverse=True),
+                maxlen=RECENT_CALLS,
+            )
+        if _newer(record, data.last_call):
+            data.last_call = record
         if record.station:
-            data.last_by_station[record.station] = record
-        if record.missed:
+            if _newer(record, data.last_by_station.get(record.station)):
+                data.last_by_station[record.station] = record
+            if record.station not in data.extensions:
+                data.unnamed_stations.add(record.station)
+        if record.missed and _newer(record, data.last_missed):
             data.last_missed = record
-        if record.is_live(dt_util.now(), LIVE_WINDOW):
+        if first_time:
+            async_dispatcher_send(hass, SIGNAL_NEW_RECORD.format(entry.entry_id), record)
+        if first_time and record.is_live(dt_util.now(), LIVE_WINDOW):
             event_data = {"entry_id": entry.entry_id, **record.as_dict()}
             hass.bus.async_fire(EVENT_CALL, event_data)
             if record.missed:
                 hass.bus.async_fire(EVENT_MISSED_CALL, event_data)
             async_dispatcher_send(hass, SIGNAL_CALL.format(entry.entry_id), record)
         else:
-            _LOGGER.debug("Stored call replayed by the phone system, no event: %r", line)
+            _LOGGER.debug("Stored or repeated call, no event: %r", line)
         async_dispatcher_send(hass, signal)
 
     client = SmdrClient(entry.data[CONF_HOST], entry.data[CONF_PORT], _on_line, _on_state)
-    entry.runtime_data = NecPbxData(client=client, extensions=extensions, phonebook=phonebook)
+    entry.runtime_data = NecPbxData(
+        client=client,
+        extensions=extensions,
+        phonebook=phonebook,
+        date_order=entry.options.get(CONF_DATE_ORDER, DATE_AUTO),
+        seen=seen,
+    )
+
+    @callback
+    def _save_now() -> None:
+        hass.async_create_task(store.async_save(_seen_data()))
+
+    entry.async_on_unload(_save_now)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     client.start()

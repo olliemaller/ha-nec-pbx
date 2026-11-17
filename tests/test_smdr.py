@@ -175,3 +175,64 @@ def test_is_live() -> None:
     assert just_now.is_live(now, window)
     assert not stored.is_live(now, window)
     assert SmdrRecord(raw="").is_live(now, window)
+
+
+def _sv9100(t, tm, d, ln, du, st, num, acc=""):
+    """Fixed columns as printed by an SV9100 (see the ADFDiesel nec-smdr project)."""
+    return f"{t:<4} {tm:<5} {d:<5} {ln:<4} {du:<8} {st:<10} {num:<20} {acc:<16}"
+
+
+@pytest.mark.parametrize(
+    ("kind", "direction"),
+    [
+        ("PIN", DIRECTION_INCOMING),
+        ("IVIN", DIRECTION_INCOMING),
+        ("PTRS", DIRECTION_INCOMING),
+        ("POT", DIRECTION_OUTGOING),
+        ("POTA", DIRECTION_OUTGOING),
+    ],
+)
+def test_sv9100_call_types(kind: str, direction: str) -> None:
+    now = datetime(2026, 11, 17, 15, 0)
+    rec = parse_line(
+        _sv9100(kind, "14:32", "11/17", "001", "00:03:12", "103", "0491570156"),
+        extensions=EXTS,
+        now=now,
+    )
+    assert rec is not None
+    assert rec.call_class == kind
+    assert rec.direction == direction
+    assert rec.start == datetime(2026, 11, 17, 14, 32)
+    assert rec.duration == 192
+    assert rec.trunk == "001"
+    assert rec.station == "103"
+    assert rec.number == "0491570156"
+    assert ("transferred" in rec.flags) == (kind == "PTRS")
+
+
+def test_ambiguous_date_picks_the_reading_that_is_not_in_the_future() -> None:
+    from custom_components.nec_pbx.smdr import DATE_DMY, DATE_MDY
+
+    now = datetime(2026, 11, 17, 15, 0)
+    line = _sv9100("PIN", "09:00", "11/05", "001", "00:01:00", "103", "0491570156")
+    # 11/05 could be 11 May or 5 November: auto takes the latest date not in the future.
+    assert parse_line(line, now=now).start == datetime(2026, 11, 5, 9, 0)
+    assert parse_line(line, now=now, date_order=DATE_DMY).start == datetime(2026, 5, 11, 9, 0)
+    assert parse_line(line, now=now, date_order=DATE_MDY).start == datetime(2026, 11, 5, 9, 0)
+    # Australian order on New Year's Day: 31/12 is last year.
+    ny = datetime(2027, 1, 1, 0, 10)
+    line = _sv9100("POT", "23:58", "31/12", "001", "00:01:00", "103", "0491570156")
+    assert parse_line(line, now=ny).start == datetime(2026, 12, 31, 23, 58)
+
+
+def test_keepalive_is_enabled() -> None:
+    import socket
+    from unittest.mock import MagicMock
+
+    from custom_components.nec_pbx.client import _enable_keepalive
+
+    sock = MagicMock()
+    writer = MagicMock()
+    writer.get_extra_info.return_value = sock
+    _enable_keepalive(writer)
+    sock.setsockopt.assert_any_call(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)

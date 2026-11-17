@@ -34,6 +34,10 @@ async def async_get_config_entry_diagnostics(
         "extensions": data.extensions,
         "phonebook_entries": len(data.phonebook),
         "unreadable_lines": data.unparsed_lines,
+        "repeated_lines": data.replayed_lines,
+        "remembered_lines": len(data.seen),
+        "date_order": data.date_order,
+        "unnamed_extensions": sorted(data.unnamed_stations),
         "last_raw_line": _mask(data.last_raw),
         "recent": [
             {

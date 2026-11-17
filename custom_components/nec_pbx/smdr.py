@@ -21,8 +21,16 @@ DIRECTION_OUTGOING = "outgoing"
 DIRECTION_INTERNAL = "internal"
 DIRECTION_UNKNOWN = "unknown"
 
-# Class codes seen in NEC SMDR output (first column).
+# Class codes seen in NEC SMDR output (first or second column). The SV9100 /
+# SL2100 "POT / PIN" family comes from real SV9100 output (see the ADFDiesel
+# nec-smdr project): POT/POTA outgoing (A = with account code), PIN/IVIN
+# incoming, PTRS a transferred trunk call, ICM internal.
 _CLASS_DIRECTIONS: dict[str, str] = {
+    "POT": DIRECTION_OUTGOING,
+    "POTA": DIRECTION_OUTGOING,
+    "PIN": DIRECTION_INCOMING,
+    "IVIN": DIRECTION_INCOMING,
+    "PTRS": DIRECTION_INCOMING,
     "IC": DIRECTION_INCOMING,
     "IN": DIRECTION_INCOMING,
     "INC": DIRECTION_INCOMING,
@@ -36,6 +44,14 @@ _CLASS_DIRECTIONS: dict[str, str] = {
     "IT": DIRECTION_INTERNAL,
     "ICM": DIRECTION_INTERNAL,
 }
+
+# Class codes that mean the call was transferred.
+_TRANSFER_CLASSES = ("PTRS", "TRF")
+
+DATE_AUTO = "auto"
+DATE_DMY = "dmy"
+DATE_MDY = "mdy"
+DATE_ORDERS = (DATE_AUTO, DATE_DMY, DATE_MDY)
 
 _MISSED_FLAGS = ("NO ANSWER", "NOANSWER", "ABANDON", "UNANSWERED", "LOST")
 
@@ -122,6 +138,7 @@ def parse_line(
     extensions: dict[str, str] | None = None,
     phonebook: dict[str, str] | None = None,
     now: datetime | None = None,
+    date_order: str = DATE_AUTO,
 ) -> SmdrRecord | None:
     """Parse one SMDR line. Returns None for headers, summaries and blanks."""
     raw = line.rstrip("\r\n")
@@ -158,6 +175,8 @@ def parse_line(
         if tok.upper() in _CLASS_DIRECTIONS:
             rec.call_class = tok.upper()
             rec.direction = _CLASS_DIRECTIONS[rec.call_class]
+            if rec.call_class in _TRANSFER_CLASSES:
+                rec.flags.append("transferred")
             break
 
     # Clock time and optional date.
@@ -169,25 +188,13 @@ def parse_line(
     dt = _RE_DATE.search(work)
     call_date: date | None = None
     if dt:
-        day, month = int(dt.group(1)), int(dt.group(2))
-        year = now.year
-        if dt.group(3):
-            year = int(dt.group(3))
-            if year < 100:
-                year += 2000
-        if 1 <= month <= 12 and 1 <= day <= 31:
-            try:
-                call_date = date(year, month, day)
-            except ValueError:
-                call_date = None
-            else:
-                work = work[: dt.start()] + " " + work[dt.end() :]
+        call_date = _pick_date(int(dt.group(1)), int(dt.group(2)), dt.group(3), now, date_order)
+        if call_date is not None:
+            work = work[: dt.start()] + " " + work[dt.end() :]
     if call_time is not None:
         when = datetime.combine(call_date or now.date(), call_time, tzinfo=now.tzinfo)
         if call_date is None and when > now + timedelta(minutes=5):
             when -= timedelta(days=1)  # call started before midnight
-        if call_date is not None and dt and not dt.group(3) and when > now + timedelta(days=1):
-            when = when.replace(year=when.year - 1)  # record from last year
         rec.start = when
 
     # Ring time (M:SS), usually after the number on incoming calls.
@@ -237,6 +244,46 @@ def parse_line(
         rec.caller_name = lookup_name(rec.number, phonebook)
 
     return rec
+
+
+def _make_date(year: int, month: int, day: int) -> date | None:
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return None
+
+
+def _pick_date(
+    first: int, second: int, year_text: str | None, now: datetime, order: str
+) -> date | None:
+    """Read a day/month pair in the configured order.
+
+    ``auto`` settles it when one number is over 12; otherwise it takes the
+    reading closest to now that isn't in the future, because a call record is
+    printed when the call ends. A date with no year that would be more than a
+    day ahead is from last year.
+    """
+    if year_text:
+        years = [int(year_text) + (2000 if len(year_text) <= 2 else 0)]
+    else:
+        years = [now.year, now.year - 1]
+    if order == DATE_DMY:
+        pairs = [(first, second)]
+    elif order == DATE_MDY:
+        pairs = [(second, first)]
+    else:
+        pairs = [(first, second), (second, first)]
+    today = now.date()
+    best: date | None = None
+    for day, month in pairs:
+        for year in years:
+            candidate = _make_date(year, month, day)
+            if candidate is None or candidate > today + timedelta(days=1):
+                continue
+            if best is None or candidate > best:
+                best = candidate
+            break  # the first year that fits is the right one for this order
+    return best
 
 
 def normalise_number(number: str) -> str:

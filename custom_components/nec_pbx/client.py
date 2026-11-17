@@ -6,8 +6,16 @@ import asyncio
 from collections.abc import Awaitable, Callable
 import contextlib
 import logging
+import socket
 
-from .const import CONNECT_TIMEOUT, RECONNECT_MAX, RECONNECT_MIN
+from .const import (
+    CONNECT_TIMEOUT,
+    KEEPALIVE_COUNT,
+    KEEPALIVE_IDLE,
+    KEEPALIVE_INTERVAL,
+    RECONNECT_MAX,
+    RECONNECT_MIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,6 +29,23 @@ async def async_probe(host: str, port: int, timeout: float = CONNECT_TIMEOUT) ->
     writer.close()
     with contextlib.suppress(OSError):
         await writer.wait_closed()
+
+
+def _enable_keepalive(writer: asyncio.StreamWriter) -> None:
+    """Turn on TCP keepalive so a PBX that vanished (reboot, cable, switch)
+    is noticed and the client reconnects, instead of waiting forever."""
+    sock = writer.get_extra_info("socket")
+    if sock is None:
+        return
+    with contextlib.suppress(OSError, AttributeError):
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        for name, value in (
+            ("TCP_KEEPIDLE", KEEPALIVE_IDLE),
+            ("TCP_KEEPINTVL", KEEPALIVE_INTERVAL),
+            ("TCP_KEEPCNT", KEEPALIVE_COUNT),
+        ):
+            if hasattr(socket, name):
+                sock.setsockopt(socket.IPPROTO_TCP, getattr(socket, name), value)
 
 
 def _clean(data: bytes) -> str:
@@ -96,6 +121,7 @@ class SmdrClient:
                 self.last_error = f"connect: {err}"
                 _LOGGER.debug("SMDR connect to %s:%s failed: %s", self.host, self.port, err)
             else:
+                _enable_keepalive(self._writer)
                 _LOGGER.info("Connected to SMDR at %s:%s", self.host, self.port)
                 self.last_error = None
                 self._set_connected(True)
