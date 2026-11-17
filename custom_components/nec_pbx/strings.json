@@ -33,28 +33,51 @@
   "options": {
     "step": {
       "init": {
-        "title": "Rooms and phonebook",
-        "description": "One entry per line as `number: name`. Each extension listed gets its own last-call sensor.",
+        "title": "Rooms, lines, phonebook and FreePBX",
+        "description": "One entry per line as `number: name`. Each extension and line listed gets its own device. The FreePBX fields are optional: fill them in to see calls ringing live and to switch do-not-disturb.",
         "data": {
           "extensions": "Extensions",
           "phonebook": "Phonebook",
-          "date_order": "Date order in the call log"
+          "date_order": "Date order in the call log",
+          "lines": "Outside lines",
+          "ami_host": "FreePBX address",
+          "ami_port": "FreePBX manager port",
+          "ami_user": "FreePBX manager user",
+          "ami_secret": "FreePBX manager password",
+          "dnd_extensions": "Do-not-disturb switches for"
         },
         "data_description": {
           "extensions": "For example `103: Oliver`.",
           "phonebook": "For example `0491570156: Alex`. Used to put names on calls.",
-          "date_order": "How your phone system prints dates. Automatic works it out from each call; pick one if your dates look wrong."
+          "date_order": "How your phone system prints dates. Automatic works it out from each call; pick one if your dates look wrong.",
+          "lines": "Trunk number to name, for example `001: Main line`. Shown on the call log as the line number.",
+          "ami_host": "Optional. The FreePBX IP address, for live ringing and caller ID. Leave empty to turn it off.",
+          "ami_port": "Usually 5038.",
+          "ami_user": "A manager user from FreePBX: Settings > Asterisk Manager Users. It needs read access to call and system, and write access to system for do-not-disturb.",
+          "ami_secret": "That manager user's password.",
+          "dnd_extensions": "FreePBX extensions that get a do-not-disturb switch, comma separated, for example `901, 902`."
         }
       }
     },
     "error": {
-      "bad_mapping": "Every line needs a colon, like `103: Oliver`."
+      "bad_mapping": "Every line needs a colon, like `103: Oliver`.",
+      "ami_auth": "FreePBX rejected that manager user or password.",
+      "ami_cannot_connect": "Couldn't reach the FreePBX manager at that address and port. Check the address, and that this Home Assistant is allowed under the manager user's Permit."
     }
   },
   "entity": {
     "binary_sensor": {
       "call_log": {
         "name": "Call log connection"
+      },
+      "ringing": {
+        "name": "Ringing"
+      },
+      "on_a_call": {
+        "name": "On a call"
+      },
+      "freepbx": {
+        "name": "FreePBX connection"
       }
     },
     "event": {
@@ -68,6 +91,18 @@
               "outgoing": "Outgoing",
               "internal": "Internal",
               "other": "Other"
+            }
+          }
+        }
+      },
+      "live_call": {
+        "name": "Live call",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "ringing": "Ringing",
+              "answered": "Answered",
+              "ended": "Ended"
             }
           }
         }
@@ -97,6 +132,58 @@
       },
       "talk_time_today": {
         "name": "Talk time today"
+      },
+      "extension_last_call": {
+        "name": "Last call"
+      },
+      "extension_calls_today": {
+        "name": "Calls today"
+      },
+      "extension_talk_time_today": {
+        "name": "Talk time today"
+      },
+      "line_last_call": {
+        "name": "Last call"
+      },
+      "line_calls_today": {
+        "name": "Calls today"
+      },
+      "calls_this_week": {
+        "name": "Calls this week"
+      },
+      "missed_calls_this_week": {
+        "name": "Missed calls this week"
+      },
+      "talk_time_this_week": {
+        "name": "Talk time this week"
+      },
+      "calls_this_month": {
+        "name": "Calls this month"
+      },
+      "missed_calls_this_month": {
+        "name": "Missed calls this month"
+      },
+      "talk_time_this_month": {
+        "name": "Talk time this month"
+      },
+      "longest_call_today": {
+        "name": "Longest call today"
+      },
+      "unknown_callers_today": {
+        "name": "Unknown callers today"
+      },
+      "current_caller": {
+        "name": "Current caller"
+      }
+    },
+    "switch": {
+      "do_not_disturb": {
+        "name": "Do not disturb {extension}"
+      }
+    },
+    "calendar": {
+      "call_history": {
+        "name": "Call history"
       }
     }
   },

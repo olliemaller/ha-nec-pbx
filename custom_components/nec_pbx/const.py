@@ -10,6 +10,13 @@ DOMAIN: Final = "nec_pbx"
 CONF_EXTENSIONS: Final = "extensions"
 CONF_PHONEBOOK: Final = "phonebook"
 CONF_DATE_ORDER: Final = "date_order"
+CONF_LINES: Final = "lines"  # "001: Main line" - trunk numbers to names
+# Optional FreePBX / Asterisk manager connection for live ringing.
+CONF_AMI_HOST: Final = "ami_host"
+CONF_AMI_PORT: Final = "ami_port"
+CONF_AMI_USER: Final = "ami_user"
+CONF_AMI_SECRET: Final = "ami_secret"
+CONF_DND_EXTENSIONS: Final = "dnd_extensions"  # FreePBX extensions with a DND switch
 
 DEFAULT_PORT: Final = 4001
 DEFAULT_NAME: Final = "NEC SL2100"
@@ -19,6 +26,10 @@ EVENT_MISSED_CALL: Final = "nec_pbx_missed_call"
 
 SIGNAL_UPDATE: Final = "nec_pbx_update_{}"
 SIGNAL_CALL: Final = "nec_pbx_new_call_{}"
+SIGNAL_LIVE: Final = "nec_pbx_live_{}"  # live call change from FreePBX
+EVENT_RINGING: Final = "nec_pbx_ringing"  # a phone started ringing (FreePBX)
+EVENT_LIVE: Final = "nec_pbx_live_call"  # ringing / answered / ended (FreePBX)
+HISTORY_CALLS: Final = 500  # calls kept for the call history calendar
 # A call seen for the first time (not a replay): daily totals count these.
 SIGNAL_NEW_RECORD: Final = "nec_pbx_new_record_{}"
 

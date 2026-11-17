@@ -17,16 +17,34 @@ class NecPbxEntity(Entity):
     _attr_has_entity_name = True
     _attr_should_poll = False
 
-    def __init__(self, entry: NecPbxConfigEntry, key: str) -> None:
+    def __init__(
+        self,
+        entry: NecPbxConfigEntry,
+        key: str,
+        *,
+        sub_device: tuple[str, str, str] | None = None,
+    ) -> None:
+        """``sub_device`` = (kind, number, name) puts the entity on its own
+        device under the phone system, e.g. ("extension", "103", "Oliver")."""
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_{key}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=entry.title,
-            manufacturer="NEC",
-            model="SL2100 / SV9100",
-            configuration_url=f"http://{entry.data['host']}",
-        )
+        if sub_device is None:
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, entry.entry_id)},
+                name=entry.title,
+                manufacturer="NEC",
+                model="SL2100 / SV9100",
+                configuration_url=f"http://{entry.data['host']}",
+            )
+        else:
+            kind, number, name = sub_device
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, f"{entry.entry_id}_{kind}_{number}")},
+                name=name or f"{kind.capitalize()} {number}",
+                manufacturer="NEC",
+                model=f"{kind.capitalize()} {number}",
+                via_device=(DOMAIN, entry.entry_id),
+            )
 
     @property
     def data(self):

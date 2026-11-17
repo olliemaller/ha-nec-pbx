@@ -15,29 +15,45 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
+from .ami import DEFAULT_AMI_PORT, AmiClient, LiveCall
 from .client import SmdrClient
 from .const import (
+    CONF_AMI_HOST,
+    CONF_AMI_PORT,
+    CONF_AMI_SECRET,
+    CONF_AMI_USER,
     CONF_DATE_ORDER,
     CONF_EXTENSIONS,
+    CONF_LINES,
     CONF_PHONEBOOK,
     DOMAIN,
     EVENT_CALL,
+    EVENT_LIVE,
     EVENT_MISSED_CALL,
+    EVENT_RINGING,
+    HISTORY_CALLS,
     ISSUE_UNREACHABLE,
     LIVE_WINDOW,
     OUTAGE_ISSUE_AFTER,
     RECENT_CALLS,
     SEEN_LINES,
     SIGNAL_CALL,
+    SIGNAL_LIVE,
     SIGNAL_NEW_RECORD,
     SIGNAL_UPDATE,
     STORAGE_VERSION,
 )
-from .smdr import DATE_AUTO, SmdrRecord, parse_line, parse_mapping
+from .smdr import DATE_AUTO, SmdrRecord, lookup_name, parse_line, parse_mapping
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.EVENT, Platform.SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
+    Platform.CALENDAR,
+    Platform.EVENT,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 
 
 @dataclass
@@ -59,6 +75,11 @@ class NecPbxData:
     replayed_lines: int = 0
     # Extensions that made or took calls but have no name in the options.
     unnamed_stations: set[str] = field(default_factory=set)
+    lines: dict[str, str] = field(default_factory=dict)  # trunk number -> name
+    # Every new call (not replays), oldest first, for the call history calendar.
+    history: list[dict] = field(default_factory=list)
+    ami: AmiClient | None = None
+    last_live: LiveCall | None = None
 
 
 type NecPbxConfigEntry = ConfigEntry[NecPbxData]
@@ -92,10 +113,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
     )
     stored = await store.async_load() or {}
     seen: OrderedDict[str, None] = OrderedDict.fromkeys(stored.get("lines", [])[-SEEN_LINES:])
+    history: list[dict] = list(stored.get("history", []))[-HISTORY_CALLS:]
 
     @callback
-    def _seen_data() -> dict[str, list[str]]:
-        return {"lines": list(entry.runtime_data.seen)}
+    def _seen_data() -> dict[str, list]:
+        data = entry.runtime_data
+        return {"lines": list(data.seen), "history": data.history[-HISTORY_CALLS:]}
 
     @callback
     def _raise_outage_issue(_now: object) -> None:
@@ -192,6 +215,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
         if record.missed and _newer(record, data.last_missed):
             data.last_missed = record
         if first_time:
+            data.history.append(record.as_dict())
+            del data.history[:-HISTORY_CALLS]
             async_dispatcher_send(hass, SIGNAL_NEW_RECORD.format(entry.entry_id), record)
         if first_time and record.is_live(dt_util.now(), LIVE_WINDOW):
             event_data = {"entry_id": entry.entry_id, **record.as_dict()}
@@ -210,7 +235,45 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
         phonebook=phonebook,
         date_order=entry.options.get(CONF_DATE_ORDER, DATE_AUTO),
         seen=seen,
+        lines=parse_mapping(entry.options.get(CONF_LINES, "")),
+        history=history,
     )
+
+    if entry.options.get(CONF_AMI_HOST):
+
+        @callback
+        def _on_live(call: LiveCall, change: str) -> None:
+            data = entry.runtime_data
+            data.last_live = call
+            name = call.caller_name or lookup_name(call.caller_number or "", data.phonebook)
+            book_name = lookup_name(call.caller_number or "", data.phonebook)
+            event_data = {
+                "entry_id": entry.entry_id,
+                "change": change,
+                "number": call.caller_number,
+                "caller_name": book_name or name,
+                "extension": call.extension,
+                "station_name": data.extensions.get(call.extension or ""),
+            }
+            hass.bus.async_fire(EVENT_LIVE, event_data)
+            if change == "ringing":
+                hass.bus.async_fire(EVENT_RINGING, event_data)
+            async_dispatcher_send(hass, SIGNAL_LIVE.format(entry.entry_id), event_data)
+            async_dispatcher_send(hass, signal)
+
+        @callback
+        def _on_ami_state(_connected: bool) -> None:
+            async_dispatcher_send(hass, signal)
+
+        ami = AmiClient(
+            entry.options[CONF_AMI_HOST],
+            int(entry.options.get(CONF_AMI_PORT) or DEFAULT_AMI_PORT),
+            entry.options.get(CONF_AMI_USER, ""),
+            entry.options.get(CONF_AMI_SECRET, ""),
+            _on_live,
+            _on_ami_state,
+        )
+        entry.runtime_data.ami = ami
 
     @callback
     def _save_now() -> None:
@@ -220,6 +283,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     client.start()
+    if entry.runtime_data.ami:
+        entry.runtime_data.ami.start()
     _watch_outage(False)  # starts the clock until the first connection
     entry.async_on_unload(_stop_watching)
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
@@ -236,6 +301,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> b
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
         await entry.runtime_data.client.stop()
+        if entry.runtime_data.ami:
+            await entry.runtime_data.ami.stop()
     return unloaded
 
 

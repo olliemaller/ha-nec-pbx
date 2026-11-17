@@ -67,6 +67,15 @@ Open the integration and choose **Configure**. Enter one entry per line as `numb
 
 Saving reloads the integration.
 
+## 4. Live calls from FreePBX (optional)
+
+1. In FreePBX: **Settings > Asterisk Manager Users > Add Manager**.
+   - Manager name and secret: anything (for example `homeassistant`).
+   - **Deny**: `0.0.0.0/0.0.0.0`. **Permit**: Home Assistant's address, for example `192.168.0.202/255.255.255.255`.
+   - **Read**: `call` and `system`. **Write**: `system` (only needed for do-not-disturb).
+   - Submit, then **Apply Config**.
+2. In Home Assistant, **Configure** the NEC PBX integration and fill in the FreePBX address, port (5038), manager user and password. To get do-not-disturb switches, list the extensions, for example `901, 902`. The options check the login before saving.
+
 ## Changing the address later
 
 Open the integration's menu (⋮) and choose **Reconfigure**.

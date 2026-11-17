@@ -90,3 +90,22 @@ content: >-
 
   {% endfor %}
 ```
+
+## Announce who's calling
+
+[![Import the blueprint.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Folliemaller%2Fha-nec-pbx%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fnec_pbx%2Fcaller_announcement.yaml)
+
+Says *"Phone call from Alex"* on your speakers while the phone is still ringing, with quiet hours. Needs the FreePBX connection (see [Setup](Setup.md)) and a text-to-speech engine.
+
+## Pause the music when someone answers
+
+```yaml
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.house_phones_on_a_call
+    to: "on"
+actions:
+  - action: media_player.media_pause
+    target:
+      entity_id: media_player.kitchen
+```

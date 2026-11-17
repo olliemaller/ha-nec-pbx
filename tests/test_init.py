@@ -137,7 +137,7 @@ async def test_calls_update_sensors_and_fire_events(hass: HomeAssistant, pbx: Fa
     assert hass.states.get("sensor.teak_phones_calls_today").state == "2"
     assert hass.states.get("sensor.teak_phones_missed_calls_today").state == "1"
     assert hass.states.get("sensor.teak_phones_recent_calls").state == "2"
-    oliver = hass.states.get("sensor.teak_phones_oliver_last_call")
+    oliver = hass.states.get("sensor.oliver_last_call")
     assert oliver.attributes["caller_name"] == "Alex"
     raw = hass.states.get("sensor.teak_phones_last_call_log_line")
     assert "NO ANSWER" in raw.state
@@ -309,3 +309,78 @@ async def test_sv9100_style_incoming_is_missed_call_aware(
     state = hass.states.get("sensor.teak_phones_last_call_log_line")
     assert state.attributes["unnamed_extensions"] == ["205"]
     assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_extension_and_line_devices_and_totals(hass: HomeAssistant, pbx: FakePbx) -> None:
+    from homeassistant.helpers import device_registry as dr
+
+    from custom_components.nec_pbx.const import CONF_LINES
+
+    calls = async_capture_events(hass, EVENT_CALL)
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Teak phones",
+        data={CONF_HOST: "127.0.0.1", CONF_PORT: pbx.port},
+        options={
+            CONF_EXTENSIONS: "103: Oliver\n104: Family",
+            CONF_PHONEBOOK: "0491570156: Alex",
+            CONF_LINES: "001: Main line",
+        },
+        unique_id=f"127.0.0.1:{pbx.port}",
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    async with asyncio.timeout(3):
+        await pbx.connected.wait()
+    await pbx.send(f"IC 0001  {_hm(6)}  001   00:02:35  103   0491570156   0:08\r\n")
+    await pbx.send(
+        f"IC 0002  {_hm(4)}  001   00:00:40  103   0491570199   0:05\r\n"
+    )  # not in the phonebook
+    await pbx.send(f"OG 0003  {_hm(2)}  002   00:01:00  104   0491570156\r\n")
+    await _wait(hass, lambda: len(calls) == 3)
+
+    devices = dr.async_get(hass)
+    oliver = devices.async_get_device(identifiers={(DOMAIN, f"{entry.entry_id}_extension_103")})
+    assert oliver is not None and oliver.name == "Oliver"
+    assert hass.states.get("sensor.oliver_calls_today").state == "2"
+    # Talk time is shown in minutes.
+    assert float(hass.states.get("sensor.oliver_talk_time_today").state) == pytest.approx(
+        (155 + 40) / 60
+    )
+    assert hass.states.get("sensor.family_calls_today").state == "1"
+    assert hass.states.get("sensor.main_line_calls_today").state == "2"
+    assert hass.states.get("sensor.main_line_last_call").attributes["station"] == "103"
+    assert hass.states.get("sensor.teak_phones_calls_this_week").state == "3"
+    assert hass.states.get("sensor.teak_phones_calls_this_month").state == "3"
+    assert float(hass.states.get("sensor.teak_phones_talk_time_this_week").state) == pytest.approx(
+        255 / 60
+    )
+    assert float(hass.states.get("sensor.teak_phones_longest_call_today").state) == pytest.approx(
+        155 / 60
+    )
+    assert hass.states.get("sensor.teak_phones_unknown_callers_today").state == "1"
+    oliver_event = hass.states.get("event.oliver_call")
+    assert oliver_event.attributes["event_type"] == "incoming"
+    assert oliver_event.attributes["number"] == "0491570199"
+
+    calendar = hass.data["entity_components"]["calendar"].get_entity(
+        "calendar.teak_phones_call_history"
+    )
+    events = await calendar.async_get_events(
+        hass, dt_util.now() - timedelta(hours=1), dt_util.now() + timedelta(hours=1)
+    )
+    assert len(events) == 3
+    assert events[0].summary.startswith("Call from Alex")
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+def test_period_starts() -> None:
+    from datetime import datetime
+
+    from custom_components.nec_pbx.sensor import DAY, MONTH, WEEK, period_start
+
+    now = dt_util.as_local(datetime(2026, 11, 19, 15, 0, tzinfo=dt_util.get_default_time_zone()))
+    assert period_start(DAY, now).date().isoformat() == "2026-11-19"
+    assert period_start(WEEK, now).date().isoformat() == "2026-11-16"  # Monday
+    assert period_start(MONTH, now).date().isoformat() == "2026-11-01"

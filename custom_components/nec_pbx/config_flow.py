@@ -15,10 +15,17 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 import voluptuous as vol
 
+from .ami import DEFAULT_AMI_PORT, AmiAuthError, async_test_login
 from .client import async_probe
 from .const import (
+    CONF_AMI_HOST,
+    CONF_AMI_PORT,
+    CONF_AMI_SECRET,
+    CONF_AMI_USER,
     CONF_DATE_ORDER,
+    CONF_DND_EXTENSIONS,
     CONF_EXTENSIONS,
+    CONF_LINES,
     CONF_PHONEBOOK,
     DEFAULT_NAME,
     DEFAULT_PORT,
@@ -115,11 +122,23 @@ class NecPbxOptionsFlow(OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
-            for key in (CONF_EXTENSIONS, CONF_PHONEBOOK):
+            for key in (CONF_EXTENSIONS, CONF_PHONEBOOK, CONF_LINES):
                 text = user_input.get(key, "")
                 lines = [line for line in text.splitlines() if line.strip()]
                 if len(parse_mapping(text)) != len(lines):
                     errors[key] = "bad_mapping"
+            if not errors and (host := (user_input.get(CONF_AMI_HOST) or "").strip()):
+                try:
+                    await async_test_login(
+                        host,
+                        int(user_input.get(CONF_AMI_PORT) or DEFAULT_AMI_PORT),
+                        user_input.get(CONF_AMI_USER, ""),
+                        user_input.get(CONF_AMI_SECRET, ""),
+                    )
+                except AmiAuthError:
+                    errors[CONF_AMI_USER] = "ami_auth"
+                except (OSError, TimeoutError, ConnectionError):
+                    errors[CONF_AMI_HOST] = "ami_cannot_connect"
             if not errors:
                 return self.async_create_entry(data=user_input)
         current = user_input or self.config_entry.options
@@ -135,9 +154,34 @@ class NecPbxOptionsFlow(OptionsFlow):
                         CONF_PHONEBOOK,
                         description={"suggested_value": current.get(CONF_PHONEBOOK, "")},
                     ): _TEXTAREA,
+                    vol.Optional(
+                        CONF_LINES,
+                        description={"suggested_value": current.get(CONF_LINES, "")},
+                    ): _TEXTAREA,
                     vol.Required(
                         CONF_DATE_ORDER, default=current.get(CONF_DATE_ORDER, DATE_AUTO)
                     ): _DATE_ORDER,
+                    vol.Optional(
+                        CONF_AMI_HOST,
+                        description={"suggested_value": current.get(CONF_AMI_HOST, "")},
+                    ): str,
+                    vol.Optional(
+                        CONF_AMI_PORT, default=current.get(CONF_AMI_PORT, DEFAULT_AMI_PORT)
+                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
+                    vol.Optional(
+                        CONF_AMI_USER,
+                        description={"suggested_value": current.get(CONF_AMI_USER, "")},
+                    ): str,
+                    vol.Optional(
+                        CONF_AMI_SECRET,
+                        description={"suggested_value": current.get(CONF_AMI_SECRET, "")},
+                    ): selector.TextSelector(
+                        selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
+                    ),
+                    vol.Optional(
+                        CONF_DND_EXTENSIONS,
+                        description={"suggested_value": current.get(CONF_DND_EXTENSIONS, "")},
+                    ): str,
                 }
             ),
             errors=errors,

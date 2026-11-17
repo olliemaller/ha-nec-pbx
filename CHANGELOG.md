@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0
+
+**New**
+
+- **A device for every extension and line.** Each extension you name (like `103: Oliver`) is now its own device under the phone system, with **Last call**, **Calls today**, **Talk time today** and its own **Call** event entity. Name your outside lines in the options too (`001: Main line`) and each gets **Last call** and **Calls today**. Existing entity IDs don't change.
+- **Weekly and monthly totals:** calls, missed calls and talk time this week (from Monday) and this month, plus **Longest call today** and **Unknown callers today** (incoming numbers not in the phonebook).
+- **Call history calendar:** every call on a calendar, the last 500 kept across restarts.
+- **Live calls from FreePBX (optional):** with FreePBX's manager interface set up in the options, you get **Ringing**, **On a call**, **Current caller** and a **Live call** event (ringing, answered, ended) while calls happen, not just when they end. Also the `nec_pbx_ringing` and `nec_pbx_live_call` events, and **Do not disturb** switches for the FreePBX extensions you list. The options check the login before saving, and a wrong password stops retries so FreePBX doesn't block Home Assistant.
+- **New blueprint: announce who's calling** on your speakers while the phone rings, with quiet hours.
+
 ## 0.4.0
 
 **Fixed**

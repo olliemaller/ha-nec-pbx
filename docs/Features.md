@@ -1,6 +1,6 @@
 # Features
 
-Everything belongs to one device, named after the integration (for example *House phones*).
+The phone system is one device, named after the integration (for example *House phones*). Each extension you name gets its own device under it (for example *Oliver*), and so does each outside line you name.
 
 ## Sensors
 
@@ -8,14 +8,52 @@ Everything belongs to one device, named after the integration (for example *Hous
 |---|---|---|
 | Last call | Time the call started | Attributes below |
 | Last missed call | Time of the last unanswered incoming call | Attributes below |
-| *Room* last call | Time of the last call on that extension | One per extension in the options |
-| Calls today | Number of calls since midnight | Resets at midnight |
-| Missed calls today | Number of missed calls since midnight | Resets at midnight |
-| Talk time today | Time spent on answered calls since midnight, in minutes | Resets at midnight; long-term statistics work |
+| Calls today / this week / this month | Number of calls | Reset at midnight, on Monday and on the 1st |
+| Missed calls today / this week / this month | Number of missed calls | Same |
+| Talk time today / this week / this month | Time on answered calls, in minutes | Same; long-term statistics work |
+| Longest call today | The longest answered call, in minutes | Resets at midnight |
+| Unknown callers today | Incoming calls from numbers not in the phonebook | Resets at midnight |
 | Recent calls | Number of calls in the list | `calls` attribute: the last 20 |
 | Last call log line | The raw line from the phone system | Diagnostic, for checking the parser |
 
 The *last call* sensors and the daily totals keep their values over a restart. The recent-calls list and the connection counters aren't written to the recorder database, because they change with every call.
+
+### On each extension's device
+
+| Entity | |
+|---|---|
+| Last call | Time of the last call on that extension, with the call attributes |
+| Calls today | Calls on that extension since midnight |
+| Talk time today | Answered call time on that extension since midnight |
+| Call | Event entity: fires for every call on that extension |
+
+### On each outside line's device
+
+Name your lines in the options, like `001: Main line`.
+
+| Entity | |
+|---|---|
+| Last call | Time of the last call on that line |
+| Calls today | Calls on that line since midnight |
+
+### Call history calendar
+
+**Call history** shows every call on a calendar (the last 500, kept across restarts), so the calendar's week view shows who rang when.
+
+## Live calls from FreePBX (optional)
+
+The NEC's call log only reports a call once it has ended. If your calls also go through FreePBX (for example lines bridged in with an ATA), fill in the FreePBX fields in the options to get live call state from FreePBX's manager interface (AMI):
+
+| Entity | |
+|---|---|
+| Ringing | On while a call is ringing, with `number`, `caller_name` and `extension` |
+| On a call | On while a call is answered |
+| Current caller | Who's ringing (phonebook name, caller ID name or number), or `none` |
+| Live call | Event entity: `ringing`, `answered`, `ended` |
+| Do not disturb *extension* | A switch per extension you list: FreePBX's do-not-disturb, the same as dialling \*76. Changes made from a phone show up within a minute |
+| FreePBX connection | Diagnostic |
+
+Bus events: `nec_pbx_ringing` when a phone starts ringing, and `nec_pbx_live_call` for every change (`change` is `ringing`, `answered` or `ended`).
 
 ## Call attributes
 

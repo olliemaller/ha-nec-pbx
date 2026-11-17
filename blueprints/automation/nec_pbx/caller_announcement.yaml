@@ -1,0 +1,97 @@
+blueprint:
+  name: NEC PBX – announce who's calling
+  description: >-
+    Says who's calling on your speakers while the phone is still ringing, for
+    example "Phone call from Alex". Needs the FreePBX connection set up in the
+    NEC PBX options (it's what knows a call is ringing), and a text-to-speech
+    engine such as Piper or Google Translate. Names come from the phonebook.
+  domain: automation
+  author: olliemaller
+  source_url: https://github.com/olliemaller/ha-nec-pbx/blob/main/blueprints/automation/nec_pbx/caller_announcement.yaml
+  homeassistant:
+    min_version: "2026.7.0"
+  input:
+    live_call:
+      name: Live call event
+      description: The NEC PBX "Live call" entity, for example event.house_phones_live_call.
+      selector:
+        entity:
+          filter:
+            - integration: nec_pbx
+              domain: event
+    tts_engine:
+      name: Text-to-speech
+      selector:
+        entity:
+          filter:
+            - domain: tts
+    speakers:
+      name: Speakers
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: media_player
+    unknown_text:
+      name: When the caller isn't in the phonebook, say
+      default: "Phone call"
+      selector:
+        text:
+    known_text:
+      name: When they are, say (the name follows)
+      default: "Phone call from"
+      selector:
+        text:
+    quiet_from:
+      name: Quiet from
+      description: No announcements between these times.
+      default: "21:30:00"
+      selector:
+        time:
+    quiet_until:
+      name: Quiet until
+      default: "07:00:00"
+      selector:
+        time:
+
+mode: single
+max_exceeded: silent
+
+triggers:
+  - trigger: state
+    entity_id: !input live_call
+    not_to:
+      - unavailable
+      - unknown
+
+variables:
+  live: !input live_call
+  event_type: "{{ state_attr(live, 'event_type') }}"
+  caller: "{{ state_attr(live, 'caller_name') }}"
+  number: "{{ state_attr(live, 'number') }}"
+  unknown_text: !input unknown_text
+  known_text: !input known_text
+  message: >-
+    {% if caller and caller != number %}{{ known_text }} {{ caller }}{% else %}{{ unknown_text }}{% endif %}
+
+conditions:
+  # A fresh ringing event, not the entity coming back after a restart.
+  - condition: template
+    value_template: >-
+      {{ event_type == 'ringing' and trigger.from_state is not none
+         and trigger.from_state.state != 'unavailable'
+         and (now() - as_datetime(trigger.to_state.state)).total_seconds() < 30 }}
+  - condition: not
+    conditions:
+      - condition: time
+        after: !input quiet_from
+        before: !input quiet_until
+
+actions:
+  - action: tts.speak
+    target:
+      entity_id: !input tts_engine
+    data:
+      media_player_entity_id: !input speakers
+      message: "{{ message }}"
+      cache: true
