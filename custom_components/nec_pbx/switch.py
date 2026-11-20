@@ -51,16 +51,18 @@ class NecPbxDndSwitch(NecPbxEntity, SwitchEntity):
         return self.data.ami is not None and self.data.ami.connected
 
     async def async_update(self) -> None:
-        if not self.available:
+        if (ami := self.data.ami) is None or not ami.connected:
             return
         try:
-            self._attr_is_on = await self.data.ami.get_dnd(self._ext)
+            self._attr_is_on = await ami.get_dnd(self._ext)
         except (ConnectionError, TimeoutError):
             return
 
     async def _set(self, on: bool) -> None:
         try:
-            await self.data.ami.set_dnd(self._ext, on)
+            if (ami := self.data.ami) is None:
+                raise ConnectionError("FreePBX is not set up")
+            await ami.set_dnd(self._ext, on)
         except (ConnectionError, TimeoutError) as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,

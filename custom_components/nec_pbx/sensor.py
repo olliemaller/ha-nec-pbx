@@ -6,6 +6,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
 
+from aionecpbx.ami import LiveCall
 from aionecpbx.smdr import DIRECTION_INCOMING, SmdrRecord
 from homeassistant.components.sensor import (
     RestoreSensor,
@@ -271,7 +272,7 @@ class _PeriodTotal(NecPbxEntity, RestoreSensor):
                 else None
             )
             if last_reset and last_reset >= period_start(self._period):
-                self._total = int(float(last.native_value or 0))
+                self._total = int(float(str(last.native_value or 0)))
         self.async_on_remove(async_track_time_change(self.hass, self._midnight, 0, 0, 0))
         self.async_on_remove(
             async_dispatcher_connect(
@@ -351,7 +352,7 @@ class LongestCallSensor(TalkTimeSensor):
             and last.native_value is not None
             and dt_util.as_local(restored.last_changed) >= period_start(DAY)
         ):
-            self._total = int(float(last.native_value))
+            self._total = int(float(str(last.native_value)))
 
 
 class RecentCallsSensor(NecPbxEntity, SensorEntity):
@@ -416,7 +417,7 @@ class CurrentCallerSensor(NecPbxEntity, SensorEntity):
     def available(self) -> bool:
         return self.data.ami is not None and self.data.ami.connected
 
-    def _call(self):
+    def _call(self) -> LiveCall | None:
         ami = self.data.ami
         calls = (ami.ringing or ami.active) if ami else []
         return calls[-1] if calls else None

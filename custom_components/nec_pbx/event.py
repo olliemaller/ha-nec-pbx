@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from aionecpbx.smdr import (
     DIRECTION_INCOMING,
     DIRECTION_INTERNAL,
@@ -131,7 +133,7 @@ class NecPbxLiveCallEvent(NecPbxEntity, EventEntity):
         """Only live call changes create events."""
 
     @callback
-    def _handle_live(self, data: dict) -> None:
+    def _handle_live(self, data: dict[str, Any]) -> None:
         self._trigger_event(
             data["change"],
             {k: data.get(k) for k in ("number", "caller_name", "extension", "station_name")},

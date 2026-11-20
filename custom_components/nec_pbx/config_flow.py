@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from aionecpbx.ami import DEFAULT_AMI_PORT, AmiAuthError, async_test_login
@@ -16,7 +17,11 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.helpers import selector
-import voluptuous as vol
+
+try:  # Home Assistant 2026.10 moved its schemas to probatio.
+    import probatio as vol
+except ImportError:  # pragma: no cover - older Home Assistant
+    import voluptuous as vol  # type: ignore[no-redef]
 
 from .const import (
     CONF_AMI_HOST,
@@ -108,6 +113,45 @@ class NecPbxConfigFlow(ConfigFlow, domain=DOMAIN):
                     ),
                 }
             ),
+            errors=errors,
+        )
+
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
+        """FreePBX rejected the manager login."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask for the FreePBX manager user and password again."""
+        entry = self._get_reauth_entry()
+        options = entry.options
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            try:
+                await async_test_login(
+                    options[CONF_AMI_HOST],
+                    int(options.get(CONF_AMI_PORT) or DEFAULT_AMI_PORT),
+                    user_input[CONF_AMI_USER],
+                    user_input[CONF_AMI_SECRET],
+                )
+            except AmiAuthError:
+                errors["base"] = "ami_auth"
+            except (OSError, TimeoutError, ConnectionError):
+                errors["base"] = "ami_cannot_connect"
+            else:
+                return self.async_update_reload_and_abort(entry, options={**options, **user_input})
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_AMI_USER, default=options.get(CONF_AMI_USER, "")): str,
+                    vol.Required(CONF_AMI_SECRET): selector.TextSelector(
+                        selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
+                    ),
+                }
+            ),
+            description_placeholders={"host": options.get(CONF_AMI_HOST, "")},
             errors=errors,
         )
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from homeassistant.core import Event, HomeAssistant, callback
@@ -23,7 +23,7 @@ def _length(seconds: int | None) -> str | None:
     return f"{minutes} min" if minutes else f"{secs} s"
 
 
-def describe_call(data: dict[str, Any]) -> str:
+def describe_call(data: Mapping[str, Any]) -> str:
     """One readable sentence for a call, e.g. 'missed call from Alex to Family, rang 21 s'."""
     who = data.get("caller_name") or data.get("number")
     if data.get("caller_name") and data.get("number"):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from aionecpbx.ami import LiveCall
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -47,7 +48,7 @@ class NecPbxConnection(NecPbxEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        return self.data.client.connected
+        return bool(self.data.client.connected)
 
     @property
     def extra_state_attributes(self) -> dict[str, object]:
@@ -70,7 +71,7 @@ class NecPbxRinging(NecPbxEntity, BinarySensorEntity):
     def available(self) -> bool:
         return self.data.ami is not None and self.data.ami.connected
 
-    def _calls(self):
+    def _calls(self) -> list[LiveCall]:
         ami = self.data.ami
         if ami is None:
             return []

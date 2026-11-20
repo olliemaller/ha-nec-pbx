@@ -86,6 +86,8 @@ Changes to the list are picked up straight away. The action `nec_pbx.save_caller
    - Submit, then **Apply Config**.
 2. In Home Assistant, **Configure** the NEC PBX integration and fill in the FreePBX address, port (5038), manager user and password. To get do-not-disturb switches, list the extensions, for example `901, 902`. The options check the login before saving.
 
+If the secret changes in FreePBX later, Home Assistant shows a **Reauthenticate** notification for NEC PBX. Open it, enter the new manager user and secret, and live calls come back without a restart.
+
 ## Changing the address later
 
 Open the integration's menu (⋮) and choose **Reconfigure**.

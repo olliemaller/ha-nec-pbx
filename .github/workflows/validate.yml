@@ -35,9 +35,12 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
-      - run: pip install -r requirements_test.txt ruff
+      - run: pip install -r requirements_test.txt ruff mypy pytest-cov
       - name: Install the integration's requirements
         run: pip install $(python -c "import json,glob;print(' '.join(json.load(open(glob.glob('custom_components/*/manifest.json')[0]))['requirements']))")
       - run: ruff check .
       - run: ruff format --check .
-      - run: pytest -q
+      - name: Strict typing (newest Home Assistant)
+        if: matrix.python == '3.14'
+        run: mypy --strict --implicit-reexport --ignore-missing-imports custom_components/nec_pbx
+      - run: pytest -q --cov=custom_components.nec_pbx --cov-report=term-missing --cov-fail-under=95

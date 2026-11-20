@@ -6,6 +6,7 @@ from collections import OrderedDict, deque
 from dataclasses import dataclass, field
 import logging
 import re
+from typing import Any
 
 from aionecpbx.ami import DEFAULT_AMI_PORT, AmiClient, LiveCall
 from aionecpbx.client import SmdrClient
@@ -23,8 +24,10 @@ from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import (
     CALLBACK_TYPE,
     Event,
+    EventStateChangedData,
     HomeAssistant,
     ServiceCall,
+    ServiceResponse,
     SupportsResponse,
     callback,
 )
@@ -39,7 +42,11 @@ from homeassistant.helpers.event import async_call_later, async_track_state_chan
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
-import voluptuous as vol
+
+try:  # Home Assistant 2026.10 moved its schemas to probatio.
+    import probatio as vol
+except ImportError:  # pragma: no cover - older Home Assistant
+    import voluptuous as vol  # type: ignore[no-redef]
 
 from .const import (
     CONF_AMI_HOST,
@@ -103,7 +110,7 @@ class NecPbxData:
     unnamed_stations: set[str] = field(default_factory=set)
     lines: dict[str, str] = field(default_factory=dict)  # trunk number -> name
     # Every new call (not replays), oldest first, for the call history calendar.
-    history: list[dict] = field(default_factory=list)
+    history: list[dict[str, Any]] = field(default_factory=list)
     ami: AmiClient | None = None
     last_live: LiveCall | None = None
     manual_phonebook: dict[str, str] = field(default_factory=dict)
@@ -131,7 +138,7 @@ _RE_PHONE = re.compile(r"\+?\d[\d ()-]{5,}\d")
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
-def parse_todo_items(items: list[dict]) -> dict[str, str]:
+def parse_todo_items(items: list[dict[str, Any]]) -> dict[str, str]:
     """Phonebook entries from to-do items: "Alex" with "0491 570 156" in the
     description, or "Alex 0491 570 156" / "Alex: 0491 570 156" as the item itself."""
     book: dict[str, str] = {}
@@ -159,7 +166,7 @@ def _merge_phonebook(data: NecPbxData) -> None:
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register the save-caller action."""
 
-    async def save_caller(call: ServiceCall) -> dict:
+    async def save_caller(call: ServiceCall) -> ServiceResponse:
         entries = list(hass.config_entries.async_loaded_entries(DOMAIN))
         if entry_id := call.data.get("config_entry_id"):
             entries = [e for e in entries if e.entry_id == entry_id]
@@ -167,7 +174,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             raise ServiceValidationError(translation_domain=DOMAIN, translation_key="not_set_up")
         entry: NecPbxConfigEntry = entries[0]
         data = entry.runtime_data
-        number = call.data.get("number")
+        number: str | None = call.data.get("number")
         if not number:
             last = next(
                 (r for r in data.recent if r.direction == DIRECTION_INCOMING and r.number), None
@@ -176,7 +183,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 raise ServiceValidationError(
                     translation_domain=DOMAIN, translation_key="no_caller_yet"
                 )
-            number = last.number
+            number = str(last.number)
         if number.upper().endswith("X"):
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
@@ -234,15 +241,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
     signal = SIGNAL_UPDATE.format(entry.entry_id)
     issue_id = ISSUE_UNREACHABLE.format(entry.entry_id)
     outage_timer: CALLBACK_TYPE | None = None
-    store: Store[dict[str, list[str]]] = Store(
-        hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.seen"
-    )
+    store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.seen")
     stored = await store.async_load() or {}
     seen: OrderedDict[str, None] = OrderedDict.fromkeys(stored.get("lines", [])[-SEEN_LINES:])
-    history: list[dict] = list(stored.get("history", []))[-HISTORY_CALLS:]
+    history: list[dict[str, Any]] = list(stored.get("history", []))[-HISTORY_CALLS:]
 
     @callback
-    def _seen_data() -> dict[str, list]:
+    def _seen_data() -> dict[str, Any]:
         data = entry.runtime_data
         return {"lines": list(data.seen), "history": data.history[-HISTORY_CALLS:]}
 
@@ -375,7 +380,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
 
     if todo_entity := entry.options.get(CONF_PHONEBOOK_TODO):
 
-        async def _load_todo(_event: Event | None = None) -> None:
+        async def _load_todo(_event: Event[EventStateChangedData] | None = None) -> None:
             if hass.states.get(todo_entity) is None:
                 return  # the list isn't loaded yet; its first state change brings us back
             try:
@@ -389,7 +394,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
             except (HomeAssistantError, vol.Invalid) as err:
                 _LOGGER.warning("Couldn't read the phonebook list %s: %s", todo_entity, err)
                 return
-            items = (response or {}).get(todo_entity, {}).get("items", [])
+            result = (response or {}).get(todo_entity)
+            raw = result.get("items") if isinstance(result, dict) else None
+            items = [i for i in raw if isinstance(i, dict)] if isinstance(raw, list) else []
             data = entry.runtime_data
             data.todo_phonebook = parse_todo_items(items)
             _merge_phonebook(data)
@@ -425,6 +432,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
         def _on_ami_state(_connected: bool) -> None:
             async_dispatcher_send(hass, signal)
 
+        @callback
+        def _on_ami_auth_failed(_message: str) -> None:
+            # Ask for the FreePBX login again; the call log carries on meanwhile.
+            entry.async_start_reauth(hass)
+            async_dispatcher_send(hass, signal)
+
         ami = AmiClient(
             entry.options[CONF_AMI_HOST],
             int(entry.options.get(CONF_AMI_PORT) or DEFAULT_AMI_PORT),
@@ -432,6 +445,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
             entry.options.get(CONF_AMI_SECRET, ""),
             _on_live,
             _on_ami_state,
+            _on_ami_auth_failed,
         )
         entry.runtime_data.ami = ami
 

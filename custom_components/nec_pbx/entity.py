@@ -14,7 +14,7 @@ from homeassistant.helpers.entity import Entity
 from .const import DOMAIN, SIGNAL_UPDATE
 
 if TYPE_CHECKING:
-    from . import NecPbxConfigEntry
+    from . import NecPbxConfigEntry, NecPbxData
 
 # Home Assistant 2026.10 added via_device_id and deprecated via_device;
 # older versions only accept via_device.
@@ -70,7 +70,7 @@ class NecPbxEntity(Entity):
             )
 
     @property
-    def data(self):
+    def data(self) -> NecPbxData:
         """Runtime data for this PBX."""
         return self._entry.runtime_data
 

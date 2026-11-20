@@ -20,14 +20,25 @@
           "host": "Host",
           "port": "SMDR port"
         }
+      },
+      "reauth_confirm": {
+        "title": "Log in to FreePBX again",
+        "description": "FreePBX at {host} rejected the manager login, so live calls and do-not-disturb have stopped. The call log still works. Enter the manager user and password (FreePBX: Settings > Asterisk Manager Users).",
+        "data": {
+          "ami_user": "Manager user",
+          "ami_secret": "Manager password"
+        }
       }
     },
     "error": {
-      "cannot_connect": "Could not connect. Check the address, that SMDR output is set to LAN (Program 35-01-01) and that no other call logger is connected."
+      "cannot_connect": "Could not connect. Check the address, that SMDR output is set to LAN (Program 35-01-01) and that no other call logger is connected.",
+      "ami_auth": "FreePBX rejected that manager user or password.",
+      "ami_cannot_connect": "Couldn't reach the FreePBX manager at that address and port. Check the address, and that this Home Assistant is allowed under the manager user's Permit."
     },
     "abort": {
       "already_configured": "This phone system is already set up.",
-      "reconfigure_successful": "Connection updated."
+      "reconfigure_successful": "Connection updated.",
+      "reauth_successful": "Logged in to FreePBX again."
     }
   },
   "options": {

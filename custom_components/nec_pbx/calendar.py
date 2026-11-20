@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from typing import Any
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.core import HomeAssistant, callback
@@ -27,7 +28,7 @@ async def async_setup_entry(
     async_add_entities([NecPbxCallHistory(entry)])
 
 
-def _event(call: dict) -> CalendarEvent | None:
+def _event(call: dict[str, Any]) -> CalendarEvent | None:
     start = dt_util.parse_datetime(call.get("start") or "")
     if start is None:
         return None
@@ -65,7 +66,7 @@ class NecPbxCallHistory(NecPbxEntity, CalendarEntity):
         """Connection changes don't change the calendar."""
 
     @callback
-    def _new_call(self, _record) -> None:
+    def _new_call(self, _record: object) -> None:
         self.async_write_ha_state()
 
     def _events(self) -> list[CalendarEvent]:

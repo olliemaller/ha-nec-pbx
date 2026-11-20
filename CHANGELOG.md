@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.8.0
+
+**New**
+
+- If FreePBX stops accepting the manager login (a changed secret, say), Home Assistant now asks you to sign in again from a notification, instead of only logging it. Enter the new user and secret and the live call and do-not-disturb entities come back without a reload.
+
+**Fixed**
+
+- A do-not-disturb switch could raise an unexpected error if FreePBX was removed from the options while it was being changed; it now shows the normal "couldn't change do-not-disturb" message.
+
+**Improved**
+
+- Fully typed (mypy strict, checked in CI) and tested to at least 95% in every module, with CI failing below that.
+- Ready for Home Assistant's probatio schemas while still working on older versions.
+- Needs aionecpbx 0.2.0.
+
 ## 0.7.0
 
 **Changed**

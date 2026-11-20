@@ -225,7 +225,43 @@ async def test_wrong_ami_password_stops_trying(hass: HomeAssistant, ami) -> None
         hass, lambda: client.last_error is not None and client.last_error.startswith("login")
     )
     assert hass.states.get("binary_sensor.home_phones_freepbx_connection").state == "off"
+
+    # Home Assistant asks for the login again.
+    await hass.async_block_till_done()
+    [flow] = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert flow["context"]["source"] == "reauth"
+    result = await hass.config_entries.flow.async_configure(
+        flow["flow_id"], {CONF_AMI_USER: "homeassistant", CONF_AMI_SECRET: "still wrong"}
+    )
+    assert result["errors"] == {"base": "ami_auth"}
+    result = await hass.config_entries.flow.async_configure(
+        flow["flow_id"], {CONF_AMI_USER: "homeassistant", CONF_AMI_SECRET: "s3cret"}
+    )
+    assert result["reason"] == "reauth_successful"
+    assert entry.options[CONF_AMI_SECRET] == "s3cret"
+    await hass.async_block_till_done()
+    client = entry.runtime_data.ami
+    await _wait(hass, lambda: client.connected)
     assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_reauth_freepbx_unreachable(hass: HomeAssistant, ami) -> None:
+    pbx, fake = ami
+    await _setup(hass, pbx, fake, secret="wrong")
+    await _wait(hass, lambda: bool(hass.config_entries.flow.async_progress_by_handler(DOMAIN)))
+    [flow] = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    from unittest.mock import patch
+
+    with patch(
+        "custom_components.nec_pbx.config_flow.async_test_login", side_effect=OSError("down")
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            flow["flow_id"], {CONF_AMI_USER: "homeassistant", CONF_AMI_SECRET: "s3cret"}
+        )
+    assert result["errors"] == {"base": "ami_cannot_connect"}
+    for e in hass.config_entries.async_entries(DOMAIN):
+        if e.state is ConfigEntryState.LOADED:
+            await hass.config_entries.async_unload(e.entry_id)
 
 
 async def test_announcement_blueprint(hass: HomeAssistant, ami) -> None:
