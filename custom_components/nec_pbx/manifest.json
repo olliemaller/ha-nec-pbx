@@ -1,6 +1,9 @@
 {
   "domain": "nec_pbx",
   "name": "NEC PBX",
+  "categories": [
+    "messaging_notifications.email_sms_calls"
+  ],
   "codeowners": [
     "@olliemaller"
   ],
