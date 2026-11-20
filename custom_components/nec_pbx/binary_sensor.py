@@ -82,7 +82,7 @@ class NecPbxRinging(NecPbxEntity, BinarySensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, object]:
-        from .smdr import lookup_name
+        from aionecpbx.smdr import lookup_name
 
         calls = self._calls()
         if not calls:

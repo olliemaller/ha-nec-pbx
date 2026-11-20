@@ -50,13 +50,3 @@ LIVE_WINDOW: Final = timedelta(minutes=15)
 # Raise a Repairs issue when the call log has been unreachable this long.
 OUTAGE_ISSUE_AFTER: Final = timedelta(minutes=10)
 ISSUE_UNREACHABLE: Final = "call_log_unreachable_{}"
-
-# Reconnect back-off (seconds).
-RECONNECT_MIN: Final = 5
-RECONNECT_MAX: Final = 300
-CONNECT_TIMEOUT: Final = 10
-
-# TCP keepalive on the SMDR socket: notice a dead link within about 90 s.
-KEEPALIVE_IDLE: Final = 60
-KEEPALIVE_INTERVAL: Final = 10
-KEEPALIVE_COUNT: Final = 3

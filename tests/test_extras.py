@@ -77,7 +77,7 @@ def test_logbook_sentences(data: dict, text: str) -> None:
 async def test_outage_raises_and_clears_a_repair(hass: HomeAssistant, pbx: FakePbx) -> None:  # noqa: F811
     with (
         patch("custom_components.nec_pbx.OUTAGE_ISSUE_AFTER", timedelta(seconds=0.2)),
-        patch("custom_components.nec_pbx.client.RECONNECT_MIN", 0.6),
+        patch("aionecpbx.client.RECONNECT_MIN", 0.6),
     ):
         entry = await _setup(hass, pbx)
         issue_id = ISSUE_UNREACHABLE.format(entry.entry_id)

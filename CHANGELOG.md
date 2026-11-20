@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0
+
+**Changed**
+
+- The phone system and FreePBX clients moved into their own library, [aionecpbx](https://github.com/olliemaller/aionecpbx) on PyPI, so other projects can use them. Home Assistant installs it for you; nothing changes in how the integration works.
+
 ## 0.6.1
 
 **Fixed**

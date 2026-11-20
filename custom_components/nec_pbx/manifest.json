@@ -12,6 +12,11 @@
   "integration_type": "device",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/olliemaller/ha-nec-pbx/issues",
-  "requirements": [],
-  "version": "0.6.1"
+  "loggers": [
+    "aionecpbx"
+  ],
+  "requirements": [
+    "aionecpbx==0.1.0"
+  ],
+  "version": "0.7.0"
 }

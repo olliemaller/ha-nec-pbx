@@ -7,6 +7,17 @@ from dataclasses import dataclass, field
 import logging
 import re
 
+from aionecpbx.ami import DEFAULT_AMI_PORT, AmiClient, LiveCall
+from aionecpbx.client import SmdrClient
+from aionecpbx.smdr import (
+    DATE_AUTO,
+    DIRECTION_INCOMING,
+    SmdrRecord,
+    lookup_name,
+    normalise_number,
+    parse_line,
+    parse_mapping,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import (
@@ -30,8 +41,6 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 import voluptuous as vol
 
-from .ami import DEFAULT_AMI_PORT, AmiClient, LiveCall
-from .client import SmdrClient
 from .const import (
     CONF_AMI_HOST,
     CONF_AMI_PORT,
@@ -61,15 +70,6 @@ from .const import (
     STORAGE_VERSION,
 )
 from .entity import pbx_device_info
-from .smdr import (
-    DATE_AUTO,
-    DIRECTION_INCOMING,
-    SmdrRecord,
-    lookup_name,
-    normalise_number,
-    parse_line,
-    parse_mapping,
-)
 
 _LOGGER = logging.getLogger(__name__)
 

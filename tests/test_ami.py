@@ -6,13 +6,13 @@ import asyncio
 from collections.abc import AsyncIterator
 import contextlib
 
+from aionecpbx import parse_message
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_capture_events
 
-from custom_components.nec_pbx.ami import parse_message
 from custom_components.nec_pbx.const import (
     CONF_AMI_HOST,
     CONF_AMI_PORT,

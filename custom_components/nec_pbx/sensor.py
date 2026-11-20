@@ -6,6 +6,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
 
+from aionecpbx.smdr import DIRECTION_INCOMING, SmdrRecord
 from homeassistant.components.sensor import (
     RestoreSensor,
     SensorDeviceClass,
@@ -22,7 +23,6 @@ from homeassistant.util import dt as dt_util
 from . import NecPbxConfigEntry
 from .const import SIGNAL_NEW_RECORD
 from .entity import NecPbxEntity
-from .smdr import DIRECTION_INCOMING, SmdrRecord
 
 # Entities are pushed updates; nothing is polled or sent per entity.
 PARALLEL_UPDATES = 0
@@ -423,7 +423,7 @@ class CurrentCallerSensor(NecPbxEntity, SensorEntity):
 
     @property
     def native_value(self) -> str:
-        from .smdr import lookup_name
+        from aionecpbx.smdr import lookup_name
 
         call = self._call()
         if call is None:

@@ -154,7 +154,7 @@ async def test_calls_update_sensors_and_fire_events(hass: HomeAssistant, pbx: Fa
 
 
 async def test_reconnects_after_pbx_drops(hass: HomeAssistant, pbx: FakePbx) -> None:
-    with patch("custom_components.nec_pbx.client.RECONNECT_MIN", 0.05):
+    with patch("aionecpbx.client.RECONNECT_MIN", 0.05):
         entry = await _setup(hass, pbx)
         await pbx.drop_clients()
         await _wait(
@@ -248,7 +248,7 @@ async def test_replay_after_reconnect_is_not_counted_twice(
     hass: HomeAssistant, pbx: FakePbx
 ) -> None:
     """The SL2100 prints today's calls again when the client reconnects."""
-    with patch("custom_components.nec_pbx.client.RECONNECT_MIN", 0.05):
+    with patch("aionecpbx.client.RECONNECT_MIN", 0.05):
         calls = async_capture_events(hass, EVENT_CALL)
         entry = await _setup(hass, pbx)
         first = f"IC 0001  {_hm(6)}  001   00:02:35  103   0491570156   0:08\r\n"

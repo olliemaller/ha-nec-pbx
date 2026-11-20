@@ -19,8 +19,8 @@ rules:
     status: todo
     comment: The FreePBX options paths aren't all tested yet (config_flow.py 89%).
   dependency-transparency:
-    status: todo
-    comment: The SMDR and Asterisk manager clients live inside the integration; they should move to a library on PyPI.
+    status: done
+    comment: aionecpbx is MIT, on PyPI, and published from GitHub Actions with trusted publishing.
   docs-actions: done
   docs-conditions:
     status: exempt
@@ -57,7 +57,7 @@ rules:
     comment: A rejected FreePBX login is logged and retries stop, but there is no reauth flow yet. SMDR itself has no login.
   test-coverage:
     status: todo
-    comment: 93% overall; ami.py and client.py reconnect paths are below 95%.
+    comment: 95% overall; config_flow.py, switch.py, logbook.py and diagnostics.py are below 95%.
 
   # Gold
   devices: done

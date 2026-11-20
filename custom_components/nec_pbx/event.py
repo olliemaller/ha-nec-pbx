@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+from aionecpbx.smdr import (
+    DIRECTION_INCOMING,
+    DIRECTION_INTERNAL,
+    DIRECTION_OUTGOING,
+    SmdrRecord,
+)
 from homeassistant.components.event import EventEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -10,12 +16,6 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import NecPbxConfigEntry
 from .const import SIGNAL_CALL, SIGNAL_LIVE
 from .entity import NecPbxEntity
-from .smdr import (
-    DIRECTION_INCOMING,
-    DIRECTION_INTERNAL,
-    DIRECTION_OUTGOING,
-    SmdrRecord,
-)
 
 # Entities are pushed updates; nothing is polled or sent per entity.
 PARALLEL_UPDATES = 0
