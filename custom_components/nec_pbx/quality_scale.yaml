@@ -1,0 +1,102 @@
+# Home Assistant integration quality scale: where this integration stands.
+# https://contributors.home-assistant.io/core/quality-scale/rules/
+# Custom integrations can't declare a tier in manifest.json, so this file is
+# a self-assessment against every rule up to Platinum.
+rules:
+  # Bronze
+  action-setup: done
+  appropriate-polling:
+    status: exempt
+    comment: Push. The phone system sends each call as it ends; only the optional FreePBX do-not-disturb switches are read.
+  brands:
+    status: done
+    comment: Icons, logos and dark variants in custom_components/nec_pbx/brand/.
+  common-modules:
+    status: done
+    comment: No coordinator (push); the base entity is in entity.py.
+  config-flow: done
+  config-flow-test-coverage:
+    status: todo
+    comment: The FreePBX options paths aren't all tested yet (config_flow.py 89%).
+  dependency-transparency:
+    status: todo
+    comment: The SMDR and Asterisk manager clients live inside the integration; they should move to a library on PyPI.
+  docs-actions: done
+  docs-conditions:
+    status: exempt
+    comment: No custom conditions.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  docs-triggers:
+    status: exempt
+    comment: No custom triggers; calls are events and event entities.
+  entity-event-setup: done
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup:
+    status: exempt
+    comment: The call log is a long-lived push connection that reconnects by itself; a Repairs issue appears if it stays down.
+  unique-config-entry: done
+
+  # Silver
+  action-exceptions: done
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable:
+    status: done
+    comment: Live call and do-not-disturb entities go unavailable without FreePBX; call history stays, since it's still true.
+  integration-owner: done
+  log-when-unavailable: done
+  parallel-updates: done
+  reauthentication-flow:
+    status: todo
+    comment: A rejected FreePBX login is logged and retries stop, but there is no reauth flow yet. SMDR itself has no login.
+  test-coverage:
+    status: todo
+    comment: 93% overall; ami.py and client.py reconnect paths are below 95%.
+
+  # Gold
+  devices: done
+  diagnostics: done
+  discovery:
+    status: exempt
+    comment: NEC phone systems don't announce themselves on the network.
+  discovery-update-info:
+    status: exempt
+    comment: No discovery.
+  docs-data-update: done
+  docs-examples: done
+  docs-known-limitations: done
+  docs-supported-devices: done
+  docs-supported-functions: done
+  docs-troubleshooting: done
+  docs-use-cases: done
+  dynamic-devices:
+    status: exempt
+    comment: Extension and line devices come from the options list, which reloads the entry when changed.
+  entity-category: done
+  entity-device-class: done
+  entity-disabled-by-default:
+    status: exempt
+    comment: Every entity is cheap (pushed, nothing polled) and used by the dashboards and blueprints.
+  entity-translations: done
+  exception-translations: done
+  icon-translations: done
+  reconfiguration-flow: done
+  repair-issues: done
+  stale-devices:
+    status: done
+    comment: An extension or line taken out of the options can be deleted from its device page.
+
+  # Platinum
+  async-dependency: done
+  inject-websession:
+    status: exempt
+    comment: Raw TCP to the phone system and Asterisk manager; no HTTP.
+  strict-typing:
+    status: todo
+    comment: Not yet fully typed.

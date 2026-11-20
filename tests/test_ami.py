@@ -132,7 +132,7 @@ async def _setup(
 ) -> MockConfigEntry:
     entry = MockConfigEntry(
         domain=DOMAIN,
-        title="Teak phones",
+        title="Home phones",
         data={CONF_HOST: "127.0.0.1", CONF_PORT: pbx.port},
         options={
             CONF_EXTENSIONS: "901: NEC Line 2",
@@ -158,7 +158,7 @@ async def test_ringing_answered_ended(hass: HomeAssistant, ami) -> None:
     async with asyncio.timeout(3):
         await fake.logged_in.wait()
     await _wait(
-        hass, lambda: hass.states.get("binary_sensor.teak_phones_freepbx_connection").state == "on"
+        hass, lambda: hass.states.get("binary_sensor.home_phones_freepbx_connection").state == "on"
     )
 
     await fake.event(
@@ -177,22 +177,22 @@ async def test_ringing_answered_ended(hass: HomeAssistant, ami) -> None:
         CallerIDNum="0491570156",
         DestCallerIDNum="901",
     )
-    await _wait(hass, lambda: hass.states.get("binary_sensor.teak_phones_ringing").state == "on")
+    await _wait(hass, lambda: hass.states.get("binary_sensor.home_phones_ringing").state == "on")
     assert ringing and ringing[0].data["caller_name"] == "Alex"
     assert ringing[0].data["station_name"] == "NEC Line 2"
-    assert hass.states.get("sensor.teak_phones_current_caller").state == "Alex"
-    assert hass.states.get("event.teak_phones_live_call").attributes["event_type"] == "ringing"
+    assert hass.states.get("sensor.home_phones_current_caller").state == "Alex"
+    assert hass.states.get("event.home_phones_live_call").attributes["event_type"] == "ringing"
 
     await fake.event(
         Event="DialEnd", Uniqueid="1.1", Linkedid="1.1", DialStatus="ANSWER", DestCallerIDNum="901"
     )
-    await _wait(hass, lambda: hass.states.get("binary_sensor.teak_phones_on_a_call").state == "on")
-    assert hass.states.get("binary_sensor.teak_phones_ringing").state == "off"
+    await _wait(hass, lambda: hass.states.get("binary_sensor.home_phones_on_a_call").state == "on")
+    assert hass.states.get("binary_sensor.home_phones_ringing").state == "off"
 
     await fake.event(Event="Hangup", Uniqueid="1.1", Linkedid="1.1")
-    await _wait(hass, lambda: hass.states.get("binary_sensor.teak_phones_on_a_call").state == "off")
-    assert hass.states.get("event.teak_phones_live_call").attributes["event_type"] == "ended"
-    assert hass.states.get("sensor.teak_phones_current_caller").state == "none"
+    await _wait(hass, lambda: hass.states.get("binary_sensor.home_phones_on_a_call").state == "off")
+    assert hass.states.get("event.home_phones_live_call").attributes["event_type"] == "ended"
+    assert hass.states.get("sensor.home_phones_current_caller").state == "none"
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -201,7 +201,7 @@ async def test_do_not_disturb_switch(hass: HomeAssistant, ami) -> None:
     entry = await _setup(hass, pbx, fake)
     async with asyncio.timeout(3):
         await fake.logged_in.wait()
-    switch = "switch.teak_phones_do_not_disturb_901"
+    switch = "switch.home_phones_do_not_disturb_901"
     await _wait(hass, lambda: hass.states.get(switch).state != "unavailable")
     await hass.services.async_call("switch", "turn_on", {"entity_id": switch}, blocking=True)
     assert fake.db["DND/901"] == "YES"
@@ -224,7 +224,7 @@ async def test_wrong_ami_password_stops_trying(hass: HomeAssistant, ami) -> None
     await _wait(
         hass, lambda: client.last_error is not None and client.last_error.startswith("login")
     )
-    assert hass.states.get("binary_sensor.teak_phones_freepbx_connection").state == "off"
+    assert hass.states.get("binary_sensor.home_phones_freepbx_connection").state == "off"
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -264,7 +264,7 @@ async def test_announcement_blueprint(hass: HomeAssistant, ami) -> None:
                 "use_blueprint": {
                     "path": f"nec_pbx/{name}",
                     "input": {
-                        "live_call": "event.teak_phones_live_call",
+                        "live_call": "event.home_phones_live_call",
                         "tts_engine": "tts.piper",
                         "speakers": ["media_player.kitchen"],
                         "quiet_from": quiet_from,

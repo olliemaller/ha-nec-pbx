@@ -2,13 +2,36 @@
 
 from __future__ import annotations
 
+import inspect
+from typing import TYPE_CHECKING, Any
+
 from homeassistant.core import callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 
-from . import NecPbxConfigEntry
 from .const import DOMAIN, SIGNAL_UPDATE
+
+if TYPE_CHECKING:
+    from . import NecPbxConfigEntry
+
+# Home Assistant 2026.10 added via_device_id and deprecated via_device;
+# older versions only accept via_device.
+SUPPORTS_VIA_DEVICE_ID = (
+    "via_device_id" in inspect.signature(dr.DeviceRegistry.async_get_or_create).parameters
+)
+
+
+def pbx_device_info(entry: NecPbxConfigEntry) -> DeviceInfo:
+    """The phone system itself."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, entry.entry_id)},
+        name=entry.title,
+        manufacturer="NEC",
+        model="SL2100 / SV9100",
+        configuration_url=f"http://{entry.data['host']}",
+    )
 
 
 class NecPbxEntity(Entity):
@@ -29,21 +52,21 @@ class NecPbxEntity(Entity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_{key}"
         if sub_device is None:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, entry.entry_id)},
-                name=entry.title,
-                manufacturer="NEC",
-                model="SL2100 / SV9100",
-                configuration_url=f"http://{entry.data['host']}",
-            )
+            self._attr_device_info = pbx_device_info(entry)
         else:
             kind, number, name = sub_device
+            parent: dict[str, Any]
+            pbx_device_id = entry.runtime_data.pbx_device_id
+            if SUPPORTS_VIA_DEVICE_ID and pbx_device_id:
+                parent = {"via_device_id": pbx_device_id}
+            else:  # pragma: no cover - Home Assistant before 2026.10
+                parent = {"via_device": (DOMAIN, entry.entry_id)}
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, f"{entry.entry_id}_{kind}_{number}")},
                 name=name or f"{kind.capitalize()} {number}",
                 manufacturer="NEC",
                 model=f"{kind.capitalize()} {number}",
-                via_device=(DOMAIN, entry.entry_id),
+                **parent,  # type: ignore[typeddict-item]
             )
 
     @property

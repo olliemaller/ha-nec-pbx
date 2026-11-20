@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.1
+
+**Fixed**
+
+- Extension and line devices now name the phone system as their parent by device id. Home Assistant 2026.10 deprecated the old way, which logged a warning and stops working in 2027.8.
+
+**Improved**
+
+- An extension or line taken out of the options can now be deleted from its device page.
+- Error messages from actions are translatable, and entity icons come from `icons.json`.
+- Manifest category (`messaging_notifications.email_sms_calls`), brand images trimmed to Home Assistant's rules, and a `quality_scale.yaml` self-assessment.
+- Docs: removing the integration, and known limitations.
+- Tests run on the latest Home Assistant as well.
+
 ## 0.6.0
 
 **New**

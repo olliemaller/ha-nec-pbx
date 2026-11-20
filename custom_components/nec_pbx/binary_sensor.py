@@ -13,6 +13,9 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import NecPbxConfigEntry
 from .entity import NecPbxEntity
 
+# Entities are pushed updates; nothing is polled or sent per entity.
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -56,14 +59,12 @@ class NecPbxRinging(NecPbxEntity, BinarySensorEntity):
     """On while a call is ringing (from FreePBX), with who's calling."""
 
     _attr_translation_key = "ringing"
-    _attr_icon = "mdi:phone-ring"
 
     def __init__(self, entry: NecPbxConfigEntry, *, answered: bool = False) -> None:
         super().__init__(entry, "on_a_call" if answered else "ringing")
         self._answered = answered
         if answered:
             self._attr_translation_key = "on_a_call"
-            self._attr_icon = "mdi:phone-in-talk"
 
     @property
     def available(self) -> bool:

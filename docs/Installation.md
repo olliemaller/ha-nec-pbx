@@ -16,6 +16,12 @@ Or use this button:
 2. Copy `custom_components/nec_pbx` into your Home Assistant `config/custom_components/` folder, so you end up with `config/custom_components/nec_pbx/manifest.json`.
 3. Restart Home Assistant.
 
+## Removing it
+
+1. **Settings → Devices & services → NEC PBX**, open the menu (⋮) on the phone system and choose **Delete**.
+2. If you installed it through the Marketplace or HACS, remove it there too, and restart Home Assistant.
+3. Nothing changes on the phone system. If you turned SMDR on just for this, you can turn Program 35-01-01 back off.
+
 ## Next
 
 [Set it up](Setup.md).

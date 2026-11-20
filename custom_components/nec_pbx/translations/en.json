@@ -223,5 +223,19 @@
         }
       }
     }
+  },
+  "exceptions": {
+    "not_set_up": {
+      "message": "No NEC PBX is set up."
+    },
+    "no_caller_yet": {
+      "message": "There's no incoming call with a number to save yet."
+    },
+    "number_hidden": {
+      "message": "{number} is hidden by the phone system and can't be saved."
+    },
+    "dnd_failed": {
+      "message": "FreePBX didn't change do-not-disturb: {error}"
+    }
   }
 }

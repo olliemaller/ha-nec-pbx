@@ -20,10 +20,10 @@ async def test_user_flow_creates_entry(hass: HomeAssistant) -> None:
     with patch(PROBE, AsyncMock()), patch(SETUP, AsyncMock(return_value=True)):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
-            {CONF_HOST: "192.168.0.10", CONF_PORT: 4001, CONF_NAME: "Teak phones"},
+            {CONF_HOST: "192.168.0.10", CONF_PORT: 4001, CONF_NAME: "Home phones"},
         )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["title"] == "Teak phones"
+    assert result["title"] == "Home phones"
     assert result["data"] == {CONF_HOST: "192.168.0.10", CONF_PORT: 4001}
 
 

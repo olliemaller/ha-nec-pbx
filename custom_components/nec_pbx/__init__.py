@@ -18,7 +18,11 @@ from homeassistant.core import (
     callback,
 )
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers import config_validation as cv, issue_registry as ir
+from homeassistant.helpers import (
+    config_validation as cv,
+    device_registry as dr,
+    issue_registry as ir,
+)
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 from homeassistant.helpers.storage import Store
@@ -56,6 +60,7 @@ from .const import (
     SIGNAL_UPDATE,
     STORAGE_VERSION,
 )
+from .entity import pbx_device_info
 from .smdr import (
     DATE_AUTO,
     DIRECTION_INCOMING,
@@ -103,6 +108,8 @@ class NecPbxData:
     last_live: LiveCall | None = None
     manual_phonebook: dict[str, str] = field(default_factory=dict)
     todo_phonebook: dict[str, str] = field(default_factory=dict)
+    # Device registry id of the phone system, the parent of extensions and lines.
+    pbx_device_id: str | None = None
 
 
 type NecPbxConfigEntry = ConfigEntry[NecPbxData]
@@ -157,7 +164,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         if entry_id := call.data.get("config_entry_id"):
             entries = [e for e in entries if e.entry_id == entry_id]
         if not entries:
-            raise ServiceValidationError("No NEC PBX is set up")
+            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="not_set_up")
         entry: NecPbxConfigEntry = entries[0]
         data = entry.runtime_data
         number = call.data.get("number")
@@ -166,11 +173,15 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 (r for r in data.recent if r.direction == DIRECTION_INCOMING and r.number), None
             )
             if last is None:
-                raise ServiceValidationError("No incoming call with a number to save yet")
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN, translation_key="no_caller_yet"
+                )
             number = last.number
         if number.upper().endswith("X"):
             raise ServiceValidationError(
-                f"{number} is hidden by the phone system and can't be saved"
+                translation_domain=DOMAIN,
+                translation_key="number_hidden",
+                translation_placeholders={"number": number},
             )
         name = call.data["name"].strip()
         todo = entry.options.get(CONF_PHONEBOOK_TODO)
@@ -354,6 +365,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
         history=history,
         manual_phonebook=dict(phonebook),
     )
+    # Register the phone system first, so extensions and lines can name it
+    # as their parent by device id (Home Assistant 2026.10 and later).
+    entry.runtime_data.pbx_device_id = (
+        dr.async_get(hass)
+        .async_get_or_create(config_entry_id=entry.entry_id, **pbx_device_info(entry))
+        .id
+    )
 
     if todo_entity := entry.options.get(CONF_PHONEBOOK_TODO):
 
@@ -446,6 +464,17 @@ async def async_unload_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> b
         if entry.runtime_data.ami:
             await entry.runtime_data.ami.stop()
     return unloaded
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, entry: NecPbxConfigEntry, device: dr.DeviceEntry
+) -> bool:
+    """Let an extension or line that's no longer in the options be deleted."""
+    data = entry.runtime_data
+    current = {(DOMAIN, entry.entry_id)}
+    current |= {(DOMAIN, f"{entry.entry_id}_extension_{ext}") for ext in data.extensions}
+    current |= {(DOMAIN, f"{entry.entry_id}_line_{trunk}") for trunk in data.lines}
+    return not device.identifiers & current
 
 
 __all__ = ["DOMAIN", "NecPbxConfigEntry", "NecPbxData"]

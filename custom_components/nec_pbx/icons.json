@@ -1,4 +1,37 @@
 {
+  "entity": {
+    "binary_sensor": {
+      "ringing": {
+        "default": "mdi:phone-ring"
+      },
+      "on_a_call": {
+        "default": "mdi:phone-in-talk"
+      }
+    },
+    "sensor": {
+      "last_call": {
+        "default": "mdi:phone-log"
+      },
+      "last_missed_call": {
+        "default": "mdi:phone-missed"
+      },
+      "extension_last_call": {
+        "default": "mdi:phone-classic"
+      },
+      "line_last_call": {
+        "default": "mdi:phone-dial"
+      },
+      "recent_calls": {
+        "default": "mdi:format-list-bulleted"
+      },
+      "last_smdr_line": {
+        "default": "mdi:text-long"
+      },
+      "current_caller": {
+        "default": "mdi:phone-ring"
+      }
+    }
+  },
   "services": {
     "save_caller": {
       "service": "mdi:account-plus"

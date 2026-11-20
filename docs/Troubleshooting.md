@@ -24,6 +24,14 @@ Download the diagnostics (**Settings → Devices & services → NEC PBX → ⋮ 
 
 The integration reconnects by itself, waiting a little longer each time (5 seconds up to 5 minutes). The **Call log connection** sensor's `last_error` attribute says why it dropped.
 
+## Known limitations
+
+- Calls appear when they **end**. SMDR only writes a record then, so ringing and answered-but-ongoing calls are only seen live with FreePBX (Setup, step 4).
+- Only one program can hold the SMDR port, so this can't run alongside other call-logging software.
+- Calls made while Home Assistant was offline are only read if the phone system buffered them. SL2100s do, for a while; older lines may be lost.
+- The phone system can't be controlled through SMDR. Do-not-disturb switches need FreePBX.
+- Tested on SL2100 and SV9100 with the General Overseas SMDR format. Other NEC systems and formats may parse differently.
+
 ## Debug logging
 
 ```yaml

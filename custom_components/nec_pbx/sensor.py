@@ -24,6 +24,9 @@ from .const import SIGNAL_NEW_RECORD
 from .entity import NecPbxEntity
 from .smdr import DIRECTION_INCOMING, SmdrRecord
 
+# Entities are pushed updates; nothing is polled or sent per entity.
+PARALLEL_UPDATES = 0
+
 _RECORD_ATTRS = (
     "direction",
     "number",
@@ -182,7 +185,6 @@ class LastCallSensor(_RestoringTimestamp):
         super().__init__(entry, key)
         self._key = key
         self._attr_translation_key = key
-        self._attr_icon = "mdi:phone-missed" if key == "last_missed_call" else "mdi:phone-log"
 
     def _record(self) -> SmdrRecord | None:
         return self.data.last_missed if self._key == "last_missed_call" else self.data.last_call
@@ -191,7 +193,6 @@ class LastCallSensor(_RestoringTimestamp):
 class StationLastCallSensor(_RestoringTimestamp):
     """Last call on one extension (room), on that extension's own device."""
 
-    _attr_icon = "mdi:phone-classic"
     _attr_translation_key = "extension_last_call"
 
     def __init__(self, entry: NecPbxConfigEntry, ext: str, name: str) -> None:
@@ -205,7 +206,6 @@ class StationLastCallSensor(_RestoringTimestamp):
 class LineLastCallSensor(_RestoringTimestamp):
     """Last call on one outside line (trunk), on that line's own device."""
 
-    _attr_icon = "mdi:phone-dial"
     _attr_translation_key = "line_last_call"
 
     def __init__(self, entry: NecPbxConfigEntry, trunk: str, name: str) -> None:
@@ -358,7 +358,6 @@ class RecentCallsSensor(NecPbxEntity, SensorEntity):
     """How many calls are in the recent list; the list itself is an attribute."""
 
     _attr_translation_key = "recent_calls"
-    _attr_icon = "mdi:format-list-bulleted"
     # The list changes with every call; keep it out of the recorder database.
     _unrecorded_attributes = frozenset({"calls"})
 
@@ -385,7 +384,6 @@ class LastLineSensor(NecPbxEntity, SensorEntity):
     _attr_translation_key = "last_smdr_line"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _unrecorded_attributes = frozenset({"unreadable_lines", "repeated_lines", "unnamed_extensions"})
-    _attr_icon = "mdi:text-long"
 
     def __init__(self, entry: NecPbxConfigEntry) -> None:
         super().__init__(entry, "last_smdr_line")
@@ -410,7 +408,6 @@ class CurrentCallerSensor(NecPbxEntity, SensorEntity):
     """Who is ringing right now (from FreePBX), or "none"."""
 
     _attr_translation_key = "current_caller"
-    _attr_icon = "mdi:phone-ring"
 
     def __init__(self, entry: NecPbxConfigEntry) -> None:
         super().__init__(entry, "current_caller")

@@ -10,7 +10,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import NecPbxConfigEntry
-from .const import CONF_DND_EXTENSIONS
+from .const import CONF_DND_EXTENSIONS, DOMAIN
 from .entity import NecPbxEntity
 
 PARALLEL_UPDATES = 1
@@ -62,7 +62,11 @@ class NecPbxDndSwitch(NecPbxEntity, SwitchEntity):
         try:
             await self.data.ami.set_dnd(self._ext, on)
         except (ConnectionError, TimeoutError) as err:
-            raise HomeAssistantError(f"FreePBX didn't change do-not-disturb: {err}") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="dnd_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
         self._attr_is_on = on
         self.async_write_ha_state()
 

@@ -17,6 +17,9 @@ from .smdr import (
     SmdrRecord,
 )
 
+# Entities are pushed updates; nothing is polled or sent per entity.
+PARALLEL_UPDATES = 0
+
 EVENT_INCOMING = "incoming"
 EVENT_MISSED = "missed"
 EVENT_OUTGOING = "outgoing"

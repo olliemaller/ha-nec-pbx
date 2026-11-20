@@ -91,7 +91,7 @@ async def _wait(hass: HomeAssistant, predicate, timeout: float = 3.0) -> None:
 async def _setup(hass: HomeAssistant, pbx: FakePbx) -> MockConfigEntry:
     entry = MockConfigEntry(
         domain=DOMAIN,
-        title="Teak phones",
+        title="Home phones",
         data={CONF_HOST: "127.0.0.1", CONF_PORT: pbx.port},
         options={
             CONF_EXTENSIONS: "103: Oliver\n104: Family",
@@ -105,7 +105,8 @@ async def _setup(hass: HomeAssistant, pbx: FakePbx) -> MockConfigEntry:
     async with asyncio.timeout(3):
         await pbx.connected.wait()
     await _wait(
-        hass, lambda: hass.states.get("binary_sensor.teak_phones_call_log_connection").state == "on"
+        hass,
+        lambda: hass.states.get("binary_sensor.home_phones_call_log_connection").state == "on",
     )
     return entry
 
@@ -130,19 +131,19 @@ async def test_calls_update_sensors_and_fire_events(hass: HomeAssistant, pbx: Fa
     assert missed[0].data["caller_name"] == "Sam"
     assert missed[0].data["station"] == "104"
 
-    last = hass.states.get("sensor.teak_phones_last_call")
+    last = hass.states.get("sensor.home_phones_last_call")
     assert last.attributes["number"] == "0491570157"
     assert last.attributes["missed"] is True
-    assert hass.states.get("sensor.teak_phones_last_missed_call").attributes["caller_name"] == "Sam"
-    assert hass.states.get("sensor.teak_phones_calls_today").state == "2"
-    assert hass.states.get("sensor.teak_phones_missed_calls_today").state == "1"
-    assert hass.states.get("sensor.teak_phones_recent_calls").state == "2"
+    assert hass.states.get("sensor.home_phones_last_missed_call").attributes["caller_name"] == "Sam"
+    assert hass.states.get("sensor.home_phones_calls_today").state == "2"
+    assert hass.states.get("sensor.home_phones_missed_calls_today").state == "1"
+    assert hass.states.get("sensor.home_phones_recent_calls").state == "2"
     oliver = hass.states.get("sensor.oliver_last_call")
     assert oliver.attributes["caller_name"] == "Alex"
-    raw = hass.states.get("sensor.teak_phones_last_call_log_line")
+    raw = hass.states.get("sensor.home_phones_last_call_log_line")
     assert "NO ANSWER" in raw.state
 
-    event = hass.states.get("event.teak_phones_call")
+    event = hass.states.get("event.home_phones_call")
     assert event.attributes["event_type"] == "missed"
     assert event.attributes["caller_name"] == "Sam"
     assert event.attributes["station_name"] == "Family"
@@ -158,13 +159,13 @@ async def test_reconnects_after_pbx_drops(hass: HomeAssistant, pbx: FakePbx) -> 
         await pbx.drop_clients()
         await _wait(
             hass,
-            lambda: hass.states.get("binary_sensor.teak_phones_call_log_connection").state == "off",
+            lambda: hass.states.get("binary_sensor.home_phones_call_log_connection").state == "off",
         )
         async with asyncio.timeout(3):
             await pbx.connected.wait()
         await _wait(
             hass,
-            lambda: hass.states.get("binary_sensor.teak_phones_call_log_connection").state == "on",
+            lambda: hass.states.get("binary_sensor.home_phones_call_log_connection").state == "on",
         )
         assert await hass.config_entries.async_unload(entry.entry_id)
 
@@ -176,7 +177,7 @@ async def test_unreadable_line_is_counted_not_fatal(hass: HomeAssistant, pbx: Fa
     calls = async_capture_events(hass, EVENT_CALL)
     await _wait(hass, lambda: entry.runtime_data.last_call is not None)
     assert entry.runtime_data.unparsed_lines == 1
-    assert hass.states.get("binary_sensor.teak_phones_call_log_connection").state == "on"
+    assert hass.states.get("binary_sensor.home_phones_call_log_connection").state == "on"
     del calls
     assert await hass.config_entries.async_unload(entry.entry_id)
 
@@ -196,7 +197,7 @@ async def test_diagnostics_mask_numbers(hass: HomeAssistant, pbx: FakePbx) -> No
 
 
 def _event_type(hass: HomeAssistant) -> str | None:
-    return hass.states.get("event.teak_phones_call").attributes.get("event_type")
+    return hass.states.get("event.home_phones_call").attributes.get("event_type")
 
 
 async def test_event_types(hass: HomeAssistant, pbx: FakePbx) -> None:
@@ -204,22 +205,22 @@ async def test_event_types(hass: HomeAssistant, pbx: FakePbx) -> None:
     await pbx.send(f"OG 0001  {_hm(4)}  001   00:02:35  103   0491570156\r\n")
     await _wait(
         hass,
-        lambda: hass.states.get("event.teak_phones_call").attributes["event_type"] == "outgoing",
+        lambda: hass.states.get("event.home_phones_call").attributes["event_type"] == "outgoing",
     )
     await pbx.send(f"IC 0002  {_hm(2)}  001   00:01:00  104   0491570157   0:08\r\n")
     await _wait(
         hass,
-        lambda: hass.states.get("event.teak_phones_call").attributes["event_type"] == "incoming",
+        lambda: hass.states.get("event.home_phones_call").attributes["event_type"] == "incoming",
     )
-    assert hass.states.get("event.teak_phones_call").attributes["duration"] == 60
+    assert hass.states.get("event.home_phones_call").attributes["duration"] == 60
     # A dropped connection must not look like a new call.
-    before = hass.states.get("event.teak_phones_call").state
+    before = hass.states.get("event.home_phones_call").state
     await pbx.drop_clients()
     await _wait(
         hass,
-        lambda: hass.states.get("binary_sensor.teak_phones_call_log_connection").state == "off",
+        lambda: hass.states.get("binary_sensor.home_phones_call_log_connection").state == "off",
     )
-    assert hass.states.get("event.teak_phones_call").state == before
+    assert hass.states.get("event.home_phones_call").state == before
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -234,12 +235,12 @@ async def test_replayed_calls_are_not_announced(hass: HomeAssistant, pbx: FakePb
 
     assert calls == []
     assert missed == []
-    assert hass.states.get("event.teak_phones_call").state == "unknown"
-    assert hass.states.get("sensor.teak_phones_calls_today").state == "0"
-    assert hass.states.get("sensor.teak_phones_missed_calls_today").state == "0"
+    assert hass.states.get("event.home_phones_call").state == "unknown"
+    assert hass.states.get("sensor.home_phones_calls_today").state == "0"
+    assert hass.states.get("sensor.home_phones_missed_calls_today").state == "0"
     # The history still shows it.
-    assert hass.states.get("sensor.teak_phones_last_missed_call").attributes["caller_name"] == "Sam"
-    assert hass.states.get("sensor.teak_phones_recent_calls").state == "1"
+    assert hass.states.get("sensor.home_phones_last_missed_call").attributes["caller_name"] == "Sam"
+    assert hass.states.get("sensor.home_phones_recent_calls").state == "1"
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -255,7 +256,7 @@ async def test_replay_after_reconnect_is_not_counted_twice(
         await pbx.send(first)
         await pbx.send(second)
         await _wait(hass, lambda: len(calls) == 2)
-        assert hass.states.get("sensor.teak_phones_calls_today").state == "2"
+        assert hass.states.get("sensor.home_phones_calls_today").state == "2"
 
         await pbx.drop_clients()
         async with asyncio.timeout(3):
@@ -266,10 +267,10 @@ async def test_replay_after_reconnect_is_not_counted_twice(
         await _wait(hass, lambda: entry.runtime_data.replayed_lines == 2)
 
         assert len(calls) == 2
-        assert hass.states.get("sensor.teak_phones_calls_today").state == "2"
-        assert hass.states.get("sensor.teak_phones_recent_calls").state == "2"
+        assert hass.states.get("sensor.home_phones_calls_today").state == "2"
+        assert hass.states.get("sensor.home_phones_recent_calls").state == "2"
         # The last call is still the newest one, not the replayed older call.
-        assert hass.states.get("sensor.teak_phones_last_call").attributes["station"] == "104"
+        assert hass.states.get("sensor.home_phones_last_call").attributes["station"] == "104"
         assert await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -306,7 +307,7 @@ async def test_sv9100_style_incoming_is_missed_call_aware(
     await pbx.send(f"POT  {_hm(1)} {today} 002  00:00:45 205        0491570156\r\n")
     await _wait(hass, lambda: len(calls) == 2)
     assert calls[1].data["direction"] == "outgoing"
-    state = hass.states.get("sensor.teak_phones_last_call_log_line")
+    state = hass.states.get("sensor.home_phones_last_call_log_line")
     assert state.attributes["unnamed_extensions"] == ["205"]
     assert await hass.config_entries.async_unload(entry.entry_id)
 
@@ -319,7 +320,7 @@ async def test_extension_and_line_devices_and_totals(hass: HomeAssistant, pbx: F
     calls = async_capture_events(hass, EVENT_CALL)
     entry = MockConfigEntry(
         domain=DOMAIN,
-        title="Teak phones",
+        title="Home phones",
         data={CONF_HOST: "127.0.0.1", CONF_PORT: pbx.port},
         options={
             CONF_EXTENSIONS: "103: Oliver\n104: Family",
@@ -341,8 +342,23 @@ async def test_extension_and_line_devices_and_totals(hass: HomeAssistant, pbx: F
     await _wait(hass, lambda: len(calls) == 3)
 
     devices = dr.async_get(hass)
-    oliver = devices.async_get_device(identifiers={(DOMAIN, f"{entry.entry_id}_extension_103")})
-    assert oliver is not None and oliver.name == "Oliver"
+    by_id = {
+        ident: device
+        for device in dr.async_entries_for_config_entry(devices, entry.entry_id)
+        for ident in device.identifiers
+    }
+    oliver = by_id[(DOMAIN, f"{entry.entry_id}_extension_103")]
+    system = by_id[(DOMAIN, entry.entry_id)]
+    assert oliver.name == "Oliver"
+    assert oliver.via_device_id == system.id
+
+    # A device still in the options can't be deleted; one taken out can.
+    from custom_components.nec_pbx import async_remove_config_entry_device
+
+    assert not await async_remove_config_entry_device(hass, entry, oliver)
+    assert not await async_remove_config_entry_device(hass, entry, system)
+    entry.runtime_data.extensions.pop("103")
+    assert await async_remove_config_entry_device(hass, entry, oliver)
     assert hass.states.get("sensor.oliver_calls_today").state == "2"
     # Talk time is shown in minutes.
     assert float(hass.states.get("sensor.oliver_talk_time_today").state) == pytest.approx(
@@ -351,21 +367,21 @@ async def test_extension_and_line_devices_and_totals(hass: HomeAssistant, pbx: F
     assert hass.states.get("sensor.family_calls_today").state == "1"
     assert hass.states.get("sensor.main_line_calls_today").state == "2"
     assert hass.states.get("sensor.main_line_last_call").attributes["station"] == "103"
-    assert hass.states.get("sensor.teak_phones_calls_this_week").state == "3"
-    assert hass.states.get("sensor.teak_phones_calls_this_month").state == "3"
-    assert float(hass.states.get("sensor.teak_phones_talk_time_this_week").state) == pytest.approx(
+    assert hass.states.get("sensor.home_phones_calls_this_week").state == "3"
+    assert hass.states.get("sensor.home_phones_calls_this_month").state == "3"
+    assert float(hass.states.get("sensor.home_phones_talk_time_this_week").state) == pytest.approx(
         255 / 60
     )
-    assert float(hass.states.get("sensor.teak_phones_longest_call_today").state) == pytest.approx(
+    assert float(hass.states.get("sensor.home_phones_longest_call_today").state) == pytest.approx(
         155 / 60
     )
-    assert hass.states.get("sensor.teak_phones_unknown_callers_today").state == "1"
+    assert hass.states.get("sensor.home_phones_unknown_callers_today").state == "1"
     oliver_event = hass.states.get("event.oliver_call")
     assert oliver_event.attributes["event_type"] == "incoming"
     assert oliver_event.attributes["number"] == "0491570199"
 
     calendar = hass.data["entity_components"]["calendar"].get_entity(
-        "calendar.teak_phones_call_history"
+        "calendar.home_phones_call_history"
     )
     events = await calendar.async_get_events(
         hass, dt_util.now() - timedelta(hours=1), dt_util.now() + timedelta(hours=1)
@@ -412,7 +428,7 @@ async def test_phonebook_from_todo_list_and_save_caller(hass: HomeAssistant, pbx
     calls = async_capture_events(hass, EVENT_CALL)
     entry = MockConfigEntry(
         domain=DOMAIN,
-        title="Teak phones",
+        title="Home phones",
         data={CONF_HOST: "127.0.0.1", CONF_PORT: pbx.port},
         options={CONF_EXTENSIONS: "103: Oliver", CONF_PHONEBOOK_TODO: "todo.phonebook"},
         unique_id=f"127.0.0.1:{pbx.port}",

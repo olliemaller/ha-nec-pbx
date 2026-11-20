@@ -21,8 +21,8 @@ async def test_talk_time_counts_answered_calls_only(hass: HomeAssistant, pbx: Fa
     await pbx.send(f"IC 0001  {_hm(4)}  001   00:02:35  103   0491570156   0:08\r\n")
     await pbx.send(f"OG 0002  {_hm(3)}  001   00:01:05  104   0491570157\r\n")
     await pbx.send(f"IC 0003  {_hm(1)}  001                 104   0491570157   0:21  NO ANSWER\r\n")
-    await _wait(hass, lambda: hass.states.get("sensor.teak_phones_calls_today").state == "3")
-    talk = hass.states.get("sensor.teak_phones_talk_time_today")
+    await _wait(hass, lambda: hass.states.get("sensor.home_phones_calls_today").state == "3")
+    talk = hass.states.get("sensor.home_phones_talk_time_today")
     assert talk.attributes["unit_of_measurement"] == "min"
     assert float(talk.state) == pytest.approx((155 + 65) / 60, abs=0.01)
     assert await hass.config_entries.async_unload(entry.entry_id)
@@ -90,7 +90,7 @@ async def test_outage_raises_and_clears_a_repair(hass: HomeAssistant, pbx: FakeP
         await _wait(hass, lambda: registry.async_get_issue(DOMAIN, issue_id) is not None)
         issue = registry.async_get_issue(DOMAIN, issue_id)
         assert issue.translation_key == "call_log_unreachable"
-        assert issue.translation_placeholders["name"] == "Teak phones"
+        assert issue.translation_placeholders["name"] == "Home phones"
 
         # The phone system comes back: the repair goes away by itself.
         await pbx.start_on(pbx.port)
