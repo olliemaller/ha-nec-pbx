@@ -36,6 +36,8 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: pip install -r requirements_test.txt ruff
+      - name: Install the integration's requirements
+        run: pip install $(python -c "import json,glob;print(' '.join(json.load(open(glob.glob('custom_components/*/manifest.json')[0]))['requirements']))")
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest -q
