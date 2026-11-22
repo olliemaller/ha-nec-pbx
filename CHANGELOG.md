@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.1
+
+**Fixed**
+
+- An answered call was reported as missed when a name on the call record contained a missed-call word, such as the caller ID name "BLOSTON" (LOST). Those words now only count as whole words (aionecpbx 0.2.1).
+
 ## 0.8.0
 
 **New**
