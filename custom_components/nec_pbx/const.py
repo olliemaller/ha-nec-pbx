@@ -20,6 +20,8 @@ CONF_AMI_PORT: Final = "ami_port"
 CONF_AMI_USER: Final = "ami_user"
 CONF_AMI_SECRET: Final = "ami_secret"
 CONF_DND_EXTENSIONS: Final = "dnd_extensions"  # FreePBX extensions with a DND switch
+# A to-do list that gets a "Call back ..." item for every missed call.
+CONF_MISSED_TODO: Final = "missed_todo"
 
 DEFAULT_PORT: Final = 4001
 DEFAULT_NAME: Final = "NEC SL2100"
@@ -30,6 +32,9 @@ EVENT_MISSED_CALL: Final = "nec_pbx_missed_call"
 SIGNAL_UPDATE: Final = "nec_pbx_update_{}"
 SIGNAL_CALL: Final = "nec_pbx_new_call_{}"
 SIGNAL_LIVE: Final = "nec_pbx_live_{}"  # live call change from FreePBX
+SIGNAL_DND: Final = "nec_pbx_dnd_{}"  # FreePBX said do-not-disturb changed: (extension, on)
+# Once FreePBX has pushed a do-not-disturb change, the switches only poll this often.
+DND_FALLBACK_POLL: Final = timedelta(minutes=5)
 EVENT_RINGING: Final = "nec_pbx_ringing"  # a phone started ringing (FreePBX)
 EVENT_LIVE: Final = "nec_pbx_live_call"  # ringing / answered / ended (FreePBX)
 HISTORY_CALLS: Final = 500  # calls kept for the call history calendar

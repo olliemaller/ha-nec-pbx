@@ -29,6 +29,9 @@
       },
       "current_caller": {
         "default": "mdi:phone-ring"
+      },
+      "extension_missed_calls_today": {
+        "default": "mdi:phone-missed"
       }
     }
   },

@@ -32,6 +32,7 @@ from .const import (
     CONF_DND_EXTENSIONS,
     CONF_EXTENSIONS,
     CONF_LINES,
+    CONF_MISSED_TODO,
     CONF_PHONEBOOK,
     CONF_PHONEBOOK_TODO,
     DEFAULT_NAME,
@@ -222,6 +223,10 @@ class NecPbxOptionsFlow(OptionsFlow):
                     vol.Optional(
                         CONF_PHONEBOOK_TODO,
                         description={"suggested_value": current.get(CONF_PHONEBOOK_TODO)},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="todo")),
+                    vol.Optional(
+                        CONF_MISSED_TODO,
+                        description={"suggested_value": current.get(CONF_MISSED_TODO)},
                     ): selector.EntitySelector(selector.EntitySelectorConfig(domain="todo")),
                     vol.Optional(
                         CONF_LINES,

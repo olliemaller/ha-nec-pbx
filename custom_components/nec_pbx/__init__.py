@@ -13,6 +13,7 @@ from aionecpbx.client import SmdrClient
 from aionecpbx.smdr import (
     DATE_AUTO,
     DIRECTION_INCOMING,
+    DIRECTION_OUTGOING,
     SmdrRecord,
     lookup_name,
     normalise_number,
@@ -56,6 +57,7 @@ from .const import (
     CONF_DATE_ORDER,
     CONF_EXTENSIONS,
     CONF_LINES,
+    CONF_MISSED_TODO,
     CONF_PHONEBOOK,
     CONF_PHONEBOOK_TODO,
     DOMAIN,
@@ -71,6 +73,7 @@ from .const import (
     SEEN_LINES,
     SERVICE_SAVE_CALLER,
     SIGNAL_CALL,
+    SIGNAL_DND,
     SIGNAL_LIVE,
     SIGNAL_NEW_RECORD,
     SIGNAL_UPDATE,
@@ -119,6 +122,8 @@ class NecPbxData:
     pbx_device_id: str | None = None
     # The options this setup was loaded with, to tell what a later change touched.
     options: dict[str, Any] = field(default_factory=dict)
+    # FreePBX has pushed a do-not-disturb change, so the switches can poll less.
+    dnd_pushed: bool = False
 
 
 type NecPbxConfigEntry = ConfigEntry[NecPbxData]
@@ -158,6 +163,63 @@ def parse_todo_items(items: list[dict[str, Any]]) -> dict[str, str]:
         if name:
             book[normalise_number(match.group(0))] = name
     return book
+
+
+_RE_CALL_BACK = re.compile(r"Call back (\+?\d+)")
+
+
+def missed_todo_text(record: SmdrRecord) -> str:
+    """ "Call back 0491570156 (Alex) missed 3:42 pm at Reception"."""
+    text = f"Call back {record.number}"
+    if record.caller_name:
+        text += f" ({record.caller_name})"
+    if record.start is not None:
+        t = dt_util.as_local(record.start)
+        text += f" missed {t.hour % 12 or 12}:{t:%M} {'am' if t.hour < 12 else 'pm'}"
+    if record.station:
+        text += f" at {record.station_name or 'extension ' + record.station}"
+    return text
+
+
+async def _update_missed_todo(hass: HomeAssistant, todo: str, record: SmdrRecord) -> None:
+    """Add a missed call to the list; tick it off when that number is called back."""
+    number = record.number
+    if not number or number.upper().endswith("X"):
+        return  # hidden or no number: nothing to call back
+    try:
+        if record.missed:
+            await hass.services.async_call(
+                "todo",
+                "add_item",
+                {"entity_id": todo, "item": missed_todo_text(record)},
+                blocking=True,
+            )
+            return
+        if record.direction != DIRECTION_OUTGOING:
+            return
+        response = await hass.services.async_call(
+            "todo",
+            "get_items",
+            {"entity_id": todo, "status": ["needs_action"]},
+            blocking=True,
+            return_response=True,
+        )
+        result = (response or {}).get(todo)
+        raw = result.get("items") if isinstance(result, dict) else None
+        items = [i for i in raw if isinstance(i, dict)] if isinstance(raw, list) else []
+        key = normalise_number(number)
+        for item in items:
+            summary = str(item.get("summary") or "")
+            match = _RE_CALL_BACK.match(summary)
+            if match and normalise_number(match.group(1)) == key:
+                await hass.services.async_call(
+                    "todo",
+                    "update_item",
+                    {"entity_id": todo, "item": item.get("uid") or summary, "status": "completed"},
+                    blocking=True,
+                )
+    except (HomeAssistantError, vol.Invalid) as err:
+        _LOGGER.warning("Couldn't update the missed-call list %s: %s", todo, err)
 
 
 def _merge_phonebook(data: NecPbxData) -> None:
@@ -360,6 +422,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
             if record.missed:
                 hass.bus.async_fire(EVENT_MISSED_CALL, event_data)
             async_dispatcher_send(hass, SIGNAL_CALL.format(entry.entry_id), record)
+            if missed_todo := entry.options.get(CONF_MISSED_TODO):
+                entry.async_create_background_task(
+                    hass, _update_missed_todo(hass, missed_todo, record), "nec_pbx missed call"
+                )
         else:
             _LOGGER.debug("Stored or repeated call, no event: %r", line)
         async_dispatcher_send(hass, signal)
@@ -439,6 +505,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
             async_dispatcher_send(hass, signal)
 
         @callback
+        def _on_dnd(extension: str, on: bool) -> None:
+            entry.runtime_data.dnd_pushed = True
+            async_dispatcher_send(hass, SIGNAL_DND.format(entry.entry_id), extension, on)
+
+        @callback
         def _on_ami_auth_failed(_message: str) -> None:
             # Ask for the FreePBX login again; the call log carries on meanwhile.
             entry.async_start_reauth(hass)
@@ -452,6 +523,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
             _on_live,
             _on_ami_state,
             _on_ami_auth_failed,
+            _on_dnd,
         )
         entry.runtime_data.ami = ami
 

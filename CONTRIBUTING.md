@@ -20,7 +20,7 @@ git clone https://github.com/olliemaller/ha-nec-pbx
 cd ha-nec-pbx
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements_test.txt ruff mypy
-pip install aionecpbx==0.2.2
+pip install aionecpbx==0.2.3
 pytest
 ruff check . && ruff format --check .
 ```

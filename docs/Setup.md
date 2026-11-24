@@ -86,6 +86,10 @@ Home Assistant's people don't have phone numbers, so the phonebook can come from
 
 Changes to the list are picked up straight away. The action `nec_pbx.save_caller` adds a name for the last incoming caller (or a number you give).
 
+### Missed-call list
+
+To keep a list of people to call back, make another to-do list (for example *Call back*) and choose it under **Missed-call list**. Each missed call adds an item like `Call back 0491570156 (Alex) missed 3:42 pm at Reception`. When anyone calls that number back from the phone system, the item is ticked off by itself. Calls with a hidden number aren't added, and calls replayed after a reconnect are never added twice.
+
 ## 4. Live calls from FreePBX (optional)
 
 1. In FreePBX: **Settings > Asterisk Manager Users > Add Manager**.

@@ -223,7 +223,7 @@ async def test_do_not_disturb_failures(hass: HomeAssistant, ami) -> None:  # noq
     entry = await _setup_ami(hass, smdr, fake)
     async with asyncio.timeout(3):
         await fake.logged_in.wait()
-    switch = "switch.home_phones_do_not_disturb_901"
+    switch = "switch.nec_line_2_do_not_disturb"
     await _wait(hass, lambda: hass.states.get(switch).state != "unavailable")
     client = entry.runtime_data.ami
 
