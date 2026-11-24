@@ -1,5 +1,5 @@
 blueprint:
-  name: NEC PBX – missed call notification
+  name: NEC PBX, missed call notification
   description: >-
     Sends a phone notification when a call to the house phones goes unanswered.
     Uses the **Call** event entity from the NEC PBX integration, so the caller's

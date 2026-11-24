@@ -66,7 +66,7 @@
           "ami_host": "Optional. The FreePBX IP address, for live ringing and caller ID. Leave empty to turn it off.",
           "ami_port": "Usually 5038.",
           "ami_user": "A manager user from FreePBX: Settings > Asterisk Manager Users. It needs read access to call and system, and write access to system for do-not-disturb.",
-          "ami_secret": "That manager user's password.",
+          "ami_secret": "That manager user's password. Leave it empty to keep the saved one.",
           "dnd_extensions": "FreePBX extensions that get a do-not-disturb switch, comma separated, for example `901, 902`.",
           "phonebook_todo": "Optional. A Home Assistant to-do list used as a phonebook, so you can add contacts from the phone app: one item per person with their number in the description (or \"Alex 0491 570 156\" as the item). The phonebook above wins for the same number."
         }
@@ -139,9 +139,6 @@
       },
       "last_smdr_line": {
         "name": "Last call log line"
-      },
-      "station_last_call": {
-        "name": "{station} last call"
       },
       "talk_time_today": {
         "name": "Talk time today"

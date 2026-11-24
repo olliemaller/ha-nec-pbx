@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.8.2
+
+Released 24 November 2026. Needs aionecpbx 0.2.2.
+
+**Fixed**
+
+- Calls could be counted twice after the phone system replayed more than 400 stored calls. The integration now remembers 600 lines, more than the 500 the call history keeps.
+- Reconfigure no longer opens a test connection when the address and port haven't changed, so it can't take the phone system's only SMDR connection from the running integration. It also updates the entry's unique ID to the new address, and stops if another entry already uses it.
+- The FreePBX options no longer test the login again when nothing about FreePBX changed.
+- Saving a caller, or changing only the phonebook, no longer reloads the whole integration.
+- Live calls from FreePBX can no longer stay "ringing" for ever if FreePBX's hang-up was missed: they end after 10 minutes. The FreePBX connection also recovers from very long lines and failing callbacks instead of stopping (aionecpbx 0.2.2).
+- A phone system that accepts the connection and drops it straight away is no longer reconnected to every 5 seconds (aionecpbx 0.2.2).
+
+**Privacy**
+
+- Unreadable call log lines are no longer written to the log at warning level with callers' numbers. The line is logged at debug level only, and is in the diagnostics with numbers masked.
+- Diagnostics now also mask numbers written with spaces or hyphens, such as "0491 570 156".
+- The "Last call log line" sensor is disabled by default.
+- The options form no longer sends the FreePBX password back to the browser. Leave it empty to keep the saved one.
+- The ringing and on-a-call sensors' `number` and `caller_name` attributes are no longer written to the recorder database.
+
+**Improved**
+
+- Logbook lines for missed calls, ringing and live call changes.
+- Diagnostics include the FreePBX connection state.
+- The announcement blueprint uses the event entity trigger for `ringing`, like the missed-call blueprint. Both blueprints need Home Assistant 2026.7.0 or newer.
+- HACS installs the release zip, and the minimum Home Assistant version is now 2026.2.3, the oldest the checks run against.
+- Documentation: FreePBX troubleshooting, the `aionecpbx` logger and the debug logging button, every call attribute, the outside lines and date order options, the `save_caller` fields, and contributing, security and code of conduct pages.
+
 ## 0.8.1
 
 **Fixed**

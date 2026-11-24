@@ -11,6 +11,7 @@ from unittest.mock import patch
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_capture_events
@@ -88,7 +89,9 @@ async def _wait(hass: HomeAssistant, predicate, timeout: float = 3.0) -> None:
             await hass.async_block_till_done()
 
 
-async def _setup(hass: HomeAssistant, pbx: FakePbx) -> MockConfigEntry:
+async def _setup(
+    hass: HomeAssistant, pbx: FakePbx, *, enable_raw_line: bool = True
+) -> MockConfigEntry:
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Home phones",
@@ -100,6 +103,14 @@ async def _setup(hass: HomeAssistant, pbx: FakePbx) -> MockConfigEntry:
         unique_id=f"127.0.0.1:{pbx.port}",
     )
     entry.add_to_hass(hass)
+    if enable_raw_line:  # disabled by default, as it holds callers' numbers
+        er.async_get(hass).async_get_or_create(
+            "sensor",
+            DOMAIN,
+            f"{entry.entry_id}_last_smdr_line",
+            suggested_object_id="home_phones_last_call_log_line",
+            config_entry=entry,
+        )
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     async with asyncio.timeout(3):
@@ -453,4 +464,43 @@ async def test_phonebook_from_todo_list_and_save_caller(hass: HomeAssistant, pbx
     assert result == {"name": "Plumber", "number": "0491570123"}
     assert items[-1] == {"summary": "Plumber", "description": "0491570123", "uid": "2"}
     await _wait(hass, lambda: entry.runtime_data.phonebook.get("0491570123") == "Plumber")
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_raw_line_sensor_is_disabled_by_default(hass: HomeAssistant, pbx: FakePbx) -> None:
+    entry = await _setup(hass, pbx, enable_raw_line=False)
+    registry = er.async_get(hass)
+    entity_id = registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_last_smdr_line")
+    assert entity_id is not None
+    assert registry.async_get(entity_id).disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    assert hass.states.get(entity_id) is None
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_replay_of_more_than_400_stored_calls_makes_no_duplicates(
+    hass: HomeAssistant, pbx: FakePbx
+) -> None:
+    """The phone system can replay as many stored calls as the history keeps.
+    Every one must be remembered, so a second replay adds nothing."""
+    from custom_components.nec_pbx.const import HISTORY_CALLS, SEEN_LINES
+
+    assert SEEN_LINES > HISTORY_CALLS
+    entry = await _setup(hass, pbx)
+    start = dt_util.now() - timedelta(days=20)
+    lines = [
+        (start + timedelta(minutes=30 * i)).strftime(
+            f"OG {i:04d}  %d/%m %H:%M  001   00:01:00  103   04915{i:05d}"
+        )
+        for i in range(450)
+    ]
+    data = entry.runtime_data
+    # Hand the lines straight to the integration, as the client does, to keep it fast.
+    for _ in range(2):  # the second time is the replay after a reconnect
+        for line in lines:
+            data.client._on_line(line)
+        await hass.async_block_till_done()
+    assert data.replayed_lines == 450
+    assert len(data.history) == 450
+    assert len({c["raw"] for c in data.history}) == 450
+    assert len(data.seen) == 450
     assert await hass.config_entries.async_unload(entry.entry_id)

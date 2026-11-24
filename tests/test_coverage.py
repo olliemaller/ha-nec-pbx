@@ -87,10 +87,79 @@ async def test_options_check_freepbx_login(
         assert result["errors"] == errors
 
 
+async def test_options_never_send_the_secret_and_keep_it_when_blank(hass: HomeAssistant) -> None:
+    saved = {
+        CONF_AMI_HOST: "192.168.0.20",
+        CONF_AMI_PORT: 5038,
+        CONF_AMI_USER: "homeassistant",
+        CONF_AMI_SECRET: "s3cret",
+    }
+    entry = MockConfigEntry(
+        domain=DOMAIN, data={CONF_HOST: "192.168.0.10", CONF_PORT: 4001}, options=saved
+    )
+    entry.add_to_hass(hass)
+    login = AsyncMock()
+    with patch(SETUP, AsyncMock(return_value=True)), patch(LOGIN, login):
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        for key in result["data_schema"].schema:
+            if key == CONF_AMI_SECRET:
+                assert not (key.description or {}).get("suggested_value")
+        # Unchanged FreePBX settings: the running entry is logged in, no test login.
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {CONF_EXTENSIONS: "", CONF_PHONEBOOK: "", **saved, CONF_AMI_SECRET: ""},
+        )
+        assert result["type"] is FlowResultType.CREATE_ENTRY
+        login.assert_not_awaited()
+        assert entry.options[CONF_AMI_SECRET] == "s3cret"
+        # A new user is tested with the saved secret.
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {**saved, CONF_AMI_USER: "ha2", CONF_AMI_SECRET: ""}
+        )
+    login.assert_awaited_once_with("192.168.0.20", 5038, "ha2", "s3cret")
+    assert entry.options[CONF_AMI_SECRET] == "s3cret"
+
+
+async def test_saving_a_caller_does_not_reload(hass: HomeAssistant, pbx: FakePbx) -> None:  # noqa: F811
+    entry = await _setup_smdr(hass, pbx)
+    with patch.object(hass.config_entries, "async_reload", AsyncMock()) as reload:
+        await hass.services.async_call(
+            DOMAIN, "save_caller", {"name": "Plumber", "number": "0491570123"}, blocking=True
+        )
+        await hass.async_block_till_done()
+        reload.assert_not_awaited()
+        assert entry.options[CONF_PHONEBOOK].endswith("0491570123: Plumber")
+        assert entry.runtime_data.phonebook["0491570123"] == "Plumber"
+        # A phonebook edit in the options is applied in place too.
+        hass.config_entries.async_update_entry(
+            entry, options={**entry.options, CONF_PHONEBOOK: "0491570199: Jordan"}
+        )
+        await hass.async_block_till_done()
+        reload.assert_not_awaited()
+        assert entry.runtime_data.phonebook == {"0491570199": "Jordan"}
+        # Anything else still reloads, so new extensions get their devices.
+        hass.config_entries.async_update_entry(
+            entry, options={**entry.options, CONF_EXTENSIONS: "103: Oliver"}
+        )
+        await hass.async_block_till_done()
+        reload.assert_awaited_once_with(entry.entry_id)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+def test_ringing_caller_is_not_recorded() -> None:
+    from custom_components.nec_pbx.binary_sensor import NecPbxRinging
+
+    assert {"number", "caller_name"} <= NecPbxRinging._unrecorded_attributes
+
+
 def test_mask_keeps_short_numbers_and_none() -> None:
     assert _mask(None) is None
     assert _mask("ext 103") == "ext 103"
     assert _mask("0491570156") == "0491xxxxxx"
+    assert _mask("call from 0491 570 156 at 10:00") == "call from 0491 xxx xxx at 10:00"
+    assert _mask("+61-491-570-156") == "+61-49x-xxx-xxx"
+    assert _mask("IC 0001  10:00  001   00:01:00  103") == "IC 0001  10:00  001   00:01:00  103"
 
 
 @pytest.mark.parametrize(
@@ -114,12 +183,34 @@ async def test_logbook_names_the_phone_system(hass: HomeAssistant) -> None:
     described: dict[str, object] = {}
 
     def _register(domain: str, event_type: str, describe) -> None:
-        described.update(domain=domain, event_type=event_type, describe=describe)
+        assert domain == DOMAIN
+        described[event_type] = describe
 
     async_describe_events(hass, _register)
-    assert described["domain"] == DOMAIN
-    assert described["event_type"] == EVENT_CALL
-    describe = described["describe"]
+    assert set(described) == {
+        EVENT_CALL,
+        "nec_pbx_missed_call",
+        "nec_pbx_ringing",
+        "nec_pbx_live_call",
+    }
+    live = described["nec_pbx_live_call"](
+        Event(
+            "nec_pbx_live_call",
+            {
+                "entry_id": entry.entry_id,
+                "change": "answered",
+                "number": "0491570156",
+                "caller_name": "Alex",
+                "station_name": "Family",
+            },
+        )
+    )
+    assert live == {
+        "name": "Home phones",
+        "message": "call from Alex (0491570156) to Family, answered",
+    }
+    assert described["nec_pbx_ringing"](Event("nec_pbx_ringing", {}))["message"] == "call, ringing"
+    describe = described[EVENT_CALL]
     known = describe(Event(EVENT_CALL, {"entry_id": entry.entry_id, "missed": True}))
     assert known["name"] == "Home phones"
     assert known["message"] == "missed call"

@@ -86,3 +86,62 @@ async def test_reconfigure(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
     assert entry.data[CONF_HOST] == "192.168.0.11"
+
+
+async def test_reconfigure_unchanged_does_not_probe(hass: HomeAssistant) -> None:
+    """The running entry holds the phone system's only SMDR slot; don't take it."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_HOST: "192.168.0.10", CONF_PORT: 4001},
+        unique_id="192.168.0.10:4001",
+    )
+    entry.add_to_hass(hass)
+    probe = AsyncMock(side_effect=OSError)
+    with patch(SETUP, AsyncMock(return_value=True)), patch(PROBE, probe):
+        result = await entry.start_reconfigure_flow(hass)
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_HOST: "192.168.0.10", CONF_PORT: 4001}
+        )
+    assert result["reason"] == "reconfigure_successful"
+    probe.assert_not_awaited()
+
+
+async def test_reconfigure_updates_the_unique_id(hass: HomeAssistant) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_HOST: "192.168.0.10", CONF_PORT: 4001},
+        unique_id="192.168.0.10:4001",
+    )
+    entry.add_to_hass(hass)
+    with patch(SETUP, AsyncMock(return_value=True)), patch(PROBE, AsyncMock()):
+        result = await entry.start_reconfigure_flow(hass)
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_HOST: "192.168.0.11", CONF_PORT: 4002}
+        )
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.unique_id == "192.168.0.11:4002"
+
+
+async def test_reconfigure_to_another_entrys_address_is_aborted(hass: HomeAssistant) -> None:
+    other = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_HOST: "192.168.0.11", CONF_PORT: 4001},
+        unique_id="192.168.0.11:4001",
+    )
+    other.add_to_hass(hass)
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_HOST: "192.168.0.10", CONF_PORT: 4001},
+        unique_id="192.168.0.10:4001",
+    )
+    entry.add_to_hass(hass)
+    probe = AsyncMock()
+    with patch(SETUP, AsyncMock(return_value=True)), patch(PROBE, probe):
+        result = await entry.start_reconfigure_flow(hass)
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_HOST: "192.168.0.11", CONF_PORT: 4001}
+        )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert entry.data[CONF_HOST] == "192.168.0.10"
+    probe.assert_not_awaited()

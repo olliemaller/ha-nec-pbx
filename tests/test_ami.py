@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 import contextlib
+import importlib.util
 
 from aionecpbx import parse_message
 from homeassistant.config_entries import ConfigEntryState
@@ -182,6 +183,12 @@ async def test_ringing_answered_ended(hass: HomeAssistant, ami) -> None:
     assert ringing[0].data["station_name"] == "NEC Line 2"
     assert hass.states.get("sensor.home_phones_current_caller").state == "Alex"
     assert hass.states.get("event.home_phones_live_call").attributes["event_type"] == "ringing"
+    from custom_components.nec_pbx.diagnostics import async_get_config_entry_diagnostics
+
+    freepbx = (await async_get_config_entry_diagnostics(hass, entry))["freepbx"]
+    assert freepbx["connected"] is True
+    assert freepbx["ringing"] == 1
+    assert freepbx["auth_failed"] is False
 
     await fake.event(
         Event="DialEnd", Uniqueid="1.1", Linkedid="1.1", DialStatus="ANSWER", DestCallerIDNum="901"
@@ -264,6 +271,10 @@ async def test_reauth_freepbx_unreachable(hass: HomeAssistant, ami) -> None:
             await hass.config_entries.async_unload(e.entry_id)
 
 
+@pytest.mark.skipif(
+    importlib.util.find_spec("homeassistant.components.event.trigger") is None,
+    reason="the event.received trigger needs Home Assistant 2026.7 or newer",
+)
 async def test_announcement_blueprint(hass: HomeAssistant, ami) -> None:
     from pathlib import Path
     import shutil

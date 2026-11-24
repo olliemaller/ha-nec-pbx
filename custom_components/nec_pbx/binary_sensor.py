@@ -60,6 +60,8 @@ class NecPbxRinging(NecPbxEntity, BinarySensorEntity):
     """On while a call is ringing (from FreePBX), with who's calling."""
 
     _attr_translation_key = "ringing"
+    # Who's calling is personal; keep it out of the recorder database.
+    _unrecorded_attributes = frozenset({"number", "caller_name"})
 
     def __init__(self, entry: NecPbxConfigEntry, *, answered: bool = False) -> None:
         super().__init__(entry, "on_a_call" if answered else "ringing")

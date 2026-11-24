@@ -67,6 +67,8 @@ class NecPbxConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def _test(self, user_input: dict[str, Any]) -> str | None:
+        """Probe the SMDR port. The phone system has only one SMDR slot, so this
+        is never done against a port a running entry already holds."""
         try:
             await async_probe(user_input[CONF_HOST], user_input[CONF_PORT])
         except (OSError, TimeoutError):
@@ -96,10 +98,17 @@ class NecPbxConfigFlow(ConfigFlow, domain=DOMAIN):
         entry = self._get_reconfigure_entry()
         errors: dict[str, str] = {}
         if user_input is not None:
-            if (error := await self._test(user_input)) is None:
+            host, port = user_input[CONF_HOST], user_input[CONF_PORT]
+            unique_id = f"{host}:{port}"
+            other = self.hass.config_entries.async_entry_for_domain_unique_id(DOMAIN, unique_id)
+            if other is not None and other.entry_id != entry.entry_id:
+                return self.async_abort(reason="already_configured")
+            # Unchanged: the running entry holds the port, so a probe would only
+            # fail or take the phone system's single SMDR slot from it.
+            unchanged = (host, port) == (entry.data[CONF_HOST], entry.data[CONF_PORT])
+            if unchanged or (error := await self._test(user_input)) is None:
                 return self.async_update_reload_and_abort(
-                    entry,
-                    data={CONF_HOST: user_input[CONF_HOST], CONF_PORT: user_input[CONF_PORT]},
+                    entry, unique_id=unique_id, data={CONF_HOST: host, CONF_PORT: port}
                 )
             errors["base"] = error
         defaults = user_input or {**entry.data, CONF_NAME: entry.title}
@@ -166,13 +175,24 @@ class NecPbxOptionsFlow(OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
+        saved = self.config_entry.options
         if user_input is not None:
+            # The password is never sent to the browser; left blank, the saved one stays.
+            if not user_input.get(CONF_AMI_SECRET) and saved.get(CONF_AMI_SECRET):
+                user_input = {**user_input, CONF_AMI_SECRET: saved[CONF_AMI_SECRET]}
             for key in (CONF_EXTENSIONS, CONF_PHONEBOOK, CONF_LINES):
                 text = user_input.get(key, "")
                 lines = [line for line in text.splitlines() if line.strip()]
                 if len(parse_mapping(text)) != len(lines):
                     errors[key] = "bad_mapping"
-            if not errors and (host := (user_input.get(CONF_AMI_HOST) or "").strip()):
+            # The running entry is already logged in with unchanged settings: no need to test.
+            ami_keys = (CONF_AMI_HOST, CONF_AMI_PORT, CONF_AMI_USER, CONF_AMI_SECRET)
+            unchanged = all(user_input.get(key) == saved.get(key) for key in ami_keys)
+            if (
+                not errors
+                and not unchanged
+                and (host := (user_input.get(CONF_AMI_HOST) or "").strip())
+            ):
                 try:
                     await async_test_login(
                         host,
@@ -186,7 +206,7 @@ class NecPbxOptionsFlow(OptionsFlow):
                     errors[CONF_AMI_HOST] = "ami_cannot_connect"
             if not errors:
                 return self.async_create_entry(data=user_input)
-        current = user_input or self.config_entry.options
+        current = user_input or saved
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
@@ -221,10 +241,7 @@ class NecPbxOptionsFlow(OptionsFlow):
                         CONF_AMI_USER,
                         description={"suggested_value": current.get(CONF_AMI_USER, "")},
                     ): str,
-                    vol.Optional(
-                        CONF_AMI_SECRET,
-                        description={"suggested_value": current.get(CONF_AMI_SECRET, "")},
-                    ): selector.TextSelector(
+                    vol.Optional(CONF_AMI_SECRET): selector.TextSelector(
                         selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
                     ),
                     vol.Optional(
