@@ -30,14 +30,27 @@ The integration reconnects by itself, waiting a little longer each time (5 secon
 - Only one program can hold the SMDR port, so this can't run alongside other call-logging software.
 - Calls made while Home Assistant was offline are only read if the phone system buffered them. SL2100s do, for a while; older lines may be lost.
 - The phone system can't be controlled through SMDR. Do-not-disturb switches need FreePBX.
-- Tested on SL2100 and SV9100 with the General Overseas SMDR format. Other NEC systems and formats may parse differently.
+- Tested on an SL2100 (Australian, software 5.21) with the General Overseas SMDR format. The SV9100's `PIN` / `POT` layout is read from sample lines but hasn't been tested on a real SV9100. Other NEC systems and formats may parse differently.
+- With FreePBX, a call whose hang-up FreePBX never reported stops showing as ringing after 10 minutes.
+
+## FreePBX: live calls don't work
+
+- **"FreePBX rejected that manager user or password"**: check the manager name and secret under **Settings > Asterisk Manager Users** in FreePBX, and that you pressed **Apply Config** after saving. After a rejected login the integration stops trying, so it can't get the user locked out, and shows a **Reauthenticate** notification. Enter the right details there.
+- **"Couldn't reach the FreePBX manager"**: the manager user's **Permit** must include Home Assistant's address, for example `192.168.0.202/255.255.255.255`, and **Deny** must not cover it. Also check port 5038 isn't blocked by the FreePBX firewall (**Connectivity > Firewall**: add Home Assistant as a trusted host).
+- **Logged in, but nothing rings**: the manager user needs **Read** access to `call` and `system`. Do-not-disturb switches also need **Write** access to `system`.
+- The **FreePBX connection** sensor's `last_error` attribute says why it last failed.
 
 ## Debug logging
+
+The quickest way: **Settings > Devices & services > NEC PBX > ⋮ > Enable debug logging**. Reproduce the problem, then choose **Disable debug logging**, and your browser downloads the log.
+
+Or in `configuration.yaml`, which also covers the library that talks to the phone system and FreePBX:
 
 ```yaml
 logger:
   logs:
     custom_components.nec_pbx: debug
+    aionecpbx: debug
 ```
 
-Every line from the phone system is then written to the Home Assistant log.
+Every line from the phone system is then written to the Home Assistant log. These lines include callers' numbers, so check the log before you share it.

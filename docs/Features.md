@@ -14,7 +14,7 @@ The phone system is one device, named after the integration (for example *House 
 | Longest call today | The longest answered call, in minutes | Resets at midnight |
 | Unknown callers today | Incoming calls from numbers not in the phonebook | Resets at midnight |
 | Recent calls | Number of calls in the list | `calls` attribute: the last 20 |
-| Last call log line | The raw line from the phone system | Diagnostic, for checking the parser |
+| Last call log line | The raw line from the phone system | Diagnostic, for checking the parser. Disabled by default because it holds callers' numbers; turn it on from the entity's settings |
 
 The *last call* sensors and the daily totals keep their values over a restart. The recent-calls list and the connection counters aren't written to the recorder database, because they change with every call.
 
@@ -59,7 +59,8 @@ Bus events: `nec_pbx_ringing` when a phone starts ringing, and `nec_pbx_live_cal
 
 | Attribute | Example | |
 |---|---|---|
-| `direction` | `incoming`, `outgoing`, `internal` | |
+| `direction` | `incoming`, `outgoing`, `internal`, `unknown` | `unknown` when the line has no class code and nothing else gives it away |
+| `call_class` | `IC`, `OG`, `PIN` | The class code as the phone system printed it, or empty |
 | `number` | `0491570006` | Outside number. Ends in `X` if the phone system hides digits. |
 | `caller_name` | `Mum` | From the phonebook |
 | `station` | `103` | The extension |
@@ -69,6 +70,8 @@ Bus events: `nec_pbx_ringing` when a phone starts ringing, and `nec_pbx_live_cal
 | `trunk` | `001` | The outside line |
 | `answered` | `true` | |
 | `missed` | `false` | Incoming and not answered |
+| `cost` | `$0.25` | The call charge, if your phone system prints one |
+| `flags` | `["no_answer"]` | Extra words found on the line: `no_answer`, `noanswer`, `abandon`, `unanswered`, `lost` or `transferred` |
 
 ## Binary sensor
 
@@ -96,6 +99,10 @@ Every call gets a line in the logbook under the phone system's name, for example
 
 If Home Assistant can't reach the call log for 10 minutes, a **Repairs** warning says so, with the last error. It clears itself when the connection comes back. No calls are lost in between: the phone system keeps them and sends them on reconnect.
 
+## How the data updates
+
+Nothing is polled. The phone system pushes each call record over the SMDR connection the moment a call ends, and the entities update straight away. FreePBX pushes ringing, answered and ended as they happen. The only thing read on a timer is the state of the do-not-disturb switches, every 30 seconds, so changes made from a phone show up.
+
 ## What it can't do
 
-The phone system writes a record when a call ends, so there is no "ringing now" or "on a call now" state. That needs NEC's CTI licence.
+From the NEC call log alone, the phone system writes a record when a call ends, so there is no "ringing now" or "on a call now" state; that needs NEC's CTI licence. With FreePBX connected, the **Ringing**, **On a call** and **Current caller** entities above give you those states for calls that go through FreePBX.

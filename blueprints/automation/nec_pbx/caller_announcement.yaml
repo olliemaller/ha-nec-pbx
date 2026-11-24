@@ -1,5 +1,5 @@
 blueprint:
-  name: NEC PBX – announce who's calling
+  name: NEC PBX, announce who's calling
   description: >-
     Says who's calling on your speakers while the phone is still ringing, for
     example "Phone call from Alex". Needs the FreePBX connection set up in the
@@ -58,29 +58,22 @@ mode: single
 max_exceeded: silent
 
 triggers:
-  - trigger: state
-    entity_id: !input live_call
-    not_to:
-      - unavailable
-      - unknown
+  - trigger: event.received
+    target:
+      entity_id: !input live_call
+    options:
+      event_type:
+        - ringing
 
 variables:
-  live: !input live_call
-  event_type: "{{ state_attr(live, 'event_type') }}"
-  caller: "{{ state_attr(live, 'caller_name') }}"
-  number: "{{ state_attr(live, 'number') }}"
+  caller: "{{ trigger.to_state.attributes.caller_name }}"
+  number: "{{ trigger.to_state.attributes.number }}"
   unknown_text: !input unknown_text
   known_text: !input known_text
   message: >-
     {% if caller and caller != number %}{{ known_text }} {{ caller }}{% else %}{{ unknown_text }}{% endif %}
 
 conditions:
-  # A fresh ringing event, not the entity coming back after a restart.
-  - condition: template
-    value_template: >-
-      {{ event_type == 'ringing' and trigger.from_state is not none
-         and trigger.from_state.state != 'unavailable'
-         and (now() - as_datetime(trigger.to_state.state)).total_seconds() < 30 }}
   - condition: not
     conditions:
       - condition: time

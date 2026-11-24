@@ -117,6 +117,8 @@ class NecPbxData:
     todo_phonebook: dict[str, str] = field(default_factory=dict)
     # Device registry id of the phone system, the parent of extensions and lines.
     pbx_device_id: str | None = None
+    # The options this setup was loaded with, to tell what a later change touched.
+    options: dict[str, Any] = field(default_factory=dict)
 
 
 type NecPbxConfigEntry = ConfigEntry[NecPbxData]
@@ -209,7 +211,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         if todo:
             data.todo_phonebook[key] = name  # the list's own update refreshes it too
         else:
-            data.manual_phonebook[key] = name  # the options change reloads the integration
+            data.manual_phonebook[key] = name  # saved in the options too; no reload needed
         _merge_phonebook(data)
         return {"name": name, "number": number}
 
@@ -314,9 +316,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
             return
         if record.number is None and record.station is None and record.duration is None:
             data.unparsed_lines += 1
+            # The raw line can hold phone numbers: only at debug level, and masked in diagnostics.
             _LOGGER.warning(
-                "Could not read SMDR line %r; please report it with your diagnostics", line
+                "Could not read an SMDR line; please report it with your diagnostics, which "
+                "include it with the numbers masked"
             )
+            _LOGGER.debug("Unreadable SMDR line: %r", line)
             async_dispatcher_send(hass, signal)
             return
         if record.start is None:
@@ -369,6 +374,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
         lines=parse_mapping(entry.options.get(CONF_LINES, "")),
         history=history,
         manual_phonebook=dict(phonebook),
+        options=dict(entry.options),
     )
     # Register the phone system first, so extensions and lines can name it
     # as their parent by device id (Home Assistant 2026.10 and later).
@@ -466,7 +472,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: NecPbxConfigEntry) -> None:
-    """Reload so new extensions get their own sensors."""
+    """Reload so new extensions get their own sensors. A phonebook change on its
+    own (such as the save_caller action) is applied in place, without a reload."""
+    data = entry.runtime_data
+    changed = {
+        key
+        for key in entry.options.keys() | data.options.keys()
+        if entry.options.get(key) != data.options.get(key)
+    }
+    if changed == {CONF_PHONEBOOK}:
+        data.options = dict(entry.options)
+        data.manual_phonebook = parse_mapping(entry.options.get(CONF_PHONEBOOK, ""))
+        _merge_phonebook(data)
+        async_dispatcher_send(hass, SIGNAL_UPDATE.format(entry.entry_id))
+        return
     await hass.config_entries.async_reload(entry.entry_id)
 
 

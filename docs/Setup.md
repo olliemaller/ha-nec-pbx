@@ -65,7 +65,16 @@ Open the integration and choose **Configure**. Enter one entry per line as `numb
 +61 400 000 000: Grandpa
 ```
 
-Saving reloads the integration.
+**Outside lines:** each line listed gets its own device with its last call and calls today. Use the trunk number as the call log prints it.
+
+```
+001: Main line
+002: Fax line
+```
+
+**Date order in the call log:** how your phone system prints dates. **Automatic** works it out from each call: a number over 12 must be the day, and otherwise it takes the reading that isn't in the future. Pick **day/month** or **month/day** if the dates on your calls look wrong, for example on an SV9100 that prints month/day.
+
+Saving reloads the integration, so new extensions and lines get their devices. A change to the phonebook alone is applied without a reload.
 
 ### Phonebook from a to-do list
 
@@ -84,10 +93,10 @@ Changes to the list are picked up straight away. The action `nec_pbx.save_caller
    - **Deny**: `0.0.0.0/0.0.0.0`. **Permit**: Home Assistant's address, for example `192.168.0.202/255.255.255.255`.
    - **Read**: `call` and `system`. **Write**: `system` (only needed for do-not-disturb).
    - Submit, then **Apply Config**.
-2. In Home Assistant, **Configure** the NEC PBX integration and fill in the FreePBX address, port (5038), manager user and password. To get do-not-disturb switches, list the extensions, for example `901, 902`. The options check the login before saving.
+2. In Home Assistant, **Configure** the NEC PBX integration and fill in the FreePBX address, port (5038), manager user and password. To get do-not-disturb switches, list the extensions, for example `901, 902`. The options check the login before saving. The saved password is never shown again: leave the field empty to keep it.
 
 If the secret changes in FreePBX later, Home Assistant shows a **Reauthenticate** notification for NEC PBX. Open it, enter the new manager user and secret, and live calls come back without a restart.
 
 ## Changing the address later
 
-Open the integration's menu (⋮) and choose **Reconfigure**.
+Open the integration's menu (⋮) and choose **Reconfigure**. If you change the address or port, Home Assistant checks it can connect first. If you keep them, it doesn't, because the running integration already holds the phone system's only SMDR connection.

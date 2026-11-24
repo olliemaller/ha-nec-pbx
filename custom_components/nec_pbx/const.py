@@ -37,8 +37,9 @@ HISTORY_CALLS: Final = 500  # calls kept for the call history calendar
 SIGNAL_NEW_RECORD: Final = "nec_pbx_new_record_{}"
 
 # Lines already counted are remembered (and saved) so the phone system's replay
-# on reconnect, or after a restart, is never counted twice.
-SEEN_LINES: Final = 400
+# on reconnect, or after a restart, is never counted twice. More than the call
+# history holds, so a replay of every stored call can't create duplicates.
+SEEN_LINES: Final = HISTORY_CALLS + 100
 STORAGE_VERSION: Final = 1
 
 RECENT_CALLS: Final = 20

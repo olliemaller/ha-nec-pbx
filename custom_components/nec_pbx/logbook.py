@@ -7,7 +7,7 @@ from typing import Any
 
 from homeassistant.core import Event, HomeAssistant, callback
 
-from .const import DOMAIN, EVENT_CALL
+from .const import DOMAIN, EVENT_CALL, EVENT_LIVE, EVENT_MISSED_CALL, EVENT_RINGING
 
 # Keys the logbook reads from a description (homeassistant.components.logbook).
 LOGBOOK_ENTRY_NAME = "name"
@@ -23,11 +23,23 @@ def _length(seconds: int | None) -> str | None:
     return f"{minutes} min" if minutes else f"{secs} s"
 
 
+def _who(data: Mapping[str, Any]) -> str | None:
+    if data.get("caller_name") and data.get("number"):
+        return f"{data['caller_name']} ({data['number']})"
+    return data.get("caller_name") or data.get("number")
+
+
+def describe_live(data: Mapping[str, Any]) -> str:
+    """A live call from FreePBX, e.g. 'call from Alex (0491570156) to Family, ringing'."""
+    who = _who(data)
+    room = data.get("station_name") or data.get("extension")
+    text = "call" + (f" from {who}" if who else "") + (f" to {room}" if room else "")
+    return f"{text}, {data.get('change') or 'ringing'}"
+
+
 def describe_call(data: Mapping[str, Any]) -> str:
     """One readable sentence for a call, e.g. 'missed call from Alex to Family, rang 21 s'."""
-    who = data.get("caller_name") or data.get("number")
-    if data.get("caller_name") and data.get("number"):
-        who = f"{data['caller_name']} ({data['number']})"
+    who = _who(data)
     room = data.get("station_name") or data.get("station")
     direction = data.get("direction")
     talk = _length(data.get("duration"))
@@ -56,12 +68,25 @@ def async_describe_events(
 ) -> None:
     """Describe calls in the logbook, under the phone system's name."""
 
+    def _name(event: Event) -> str:
+        entry = hass.config_entries.async_get_entry(event.data.get("entry_id", ""))
+        return entry.title if entry else "Phone system"
+
     @callback
     def _describe(event: Event) -> dict[str, str]:
-        entry = hass.config_entries.async_get_entry(event.data.get("entry_id", ""))
         return {
-            LOGBOOK_ENTRY_NAME: entry.title if entry else "Phone system",
+            LOGBOOK_ENTRY_NAME: _name(event),
             LOGBOOK_ENTRY_MESSAGE: describe_call(event.data),
         }
 
+    @callback
+    def _describe_live(event: Event) -> dict[str, str]:
+        return {
+            LOGBOOK_ENTRY_NAME: _name(event),
+            LOGBOOK_ENTRY_MESSAGE: describe_live(event.data),
+        }
+
     async_describe_event(DOMAIN, EVENT_CALL, _describe)
+    async_describe_event(DOMAIN, EVENT_MISSED_CALL, _describe)
+    async_describe_event(DOMAIN, EVENT_RINGING, _describe_live)
+    async_describe_event(DOMAIN, EVENT_LIVE, _describe_live)

@@ -6,7 +6,7 @@
   <a href="https://www.home-assistant.io/integrations/marketplace/"><img src="https://img.shields.io/badge/Marketplace-Custom-FFFFFF?style=for-the-badge&logo=homeassistant&logoColor=white&labelColor=000000" alt="Home Assistant Marketplace"></a>
   <a href="https://github.com/olliemaller/ha-nec-pbx/releases"><img src="https://img.shields.io/github/v/release/olliemaller/ha-nec-pbx?style=for-the-badge&color=FFFFFF&labelColor=000000&include_prereleases" alt="Release"></a>
   <a href="https://github.com/olliemaller/ha-nec-pbx/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/olliemaller/ha-nec-pbx/validate.yml?branch=main&style=for-the-badge&label=checks&labelColor=000000" alt="Checks"></a>
-  <img src="https://img.shields.io/badge/Home%20Assistant-2025.6%2B-FFFFFF?style=for-the-badge&logo=homeassistant&logoColor=white&labelColor=000000" alt="Home Assistant 2025.6+">
+  <img src="https://img.shields.io/badge/Home%20Assistant-2026.2.3%2B-FFFFFF?style=for-the-badge&logo=homeassistant&logoColor=white&labelColor=000000" alt="Home Assistant 2026.2.3+">
   <a href="https://github.com/olliemaller/ha-nec-pbx/blob/main/LICENSE"><img src="https://img.shields.io/github/license/olliemaller/ha-nec-pbx?style=for-the-badge&color=FFFFFF&labelColor=000000" alt="Licence"></a>
 </p>
 
@@ -66,13 +66,18 @@
 3. **Add the integration** with the phone system's IP address and the SMDR port.
 4. **Name your rooms** under **Configure**, one per line, like `103: Oliver`, and add a phonebook, like `0491 570 006: Mum`.
 
-Needs an NEC SL2100 or SV9100 on your network, and Home Assistant 2025.6 or newer. Tested on an SL2100 (Australian, software 5.21). Please [tell us how it went](https://github.com/olliemaller/ha-nec-pbx/issues/new) on yours.
+Needs an NEC SL2100 or SV9100 on your network, and Home Assistant 2026.2.3 or newer (the oldest version the checks run against). The two blueprints need Home Assistant 2026.7.0 or newer. Tested on an SL2100 (Australian, software 5.21); the SV9100 layout is read from sample lines. Please [tell us how it went](https://github.com/olliemaller/ha-nec-pbx/issues/new) on yours.
 
 ## Help and contributing
 
 - Something not working? See [Troubleshooting](https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/Troubleshooting.md), then [open an issue](https://github.com/olliemaller/ha-nec-pbx/issues/new) with your diagnostics attached.
 - A call read wrongly? The diagnostics include the raw call-log line with numbers masked. That line is all that's needed to add your system's layout.
-- Want to help? See [Development](https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/Development.md).
+- Want to help? See [Contributing](https://github.com/olliemaller/ha-nec-pbx/blob/main/CONTRIBUTING.md) and [Development](https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/Development.md).
+- Found a security problem? See the [security policy](https://github.com/olliemaller/ha-nec-pbx/blob/main/SECURITY.md).
+
+## Credits
+
+Built on [aionecpbx](https://github.com/olliemaller/aionecpbx).
 
 ## Licence
 

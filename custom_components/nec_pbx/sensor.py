@@ -384,6 +384,8 @@ class LastLineSensor(NecPbxEntity, SensorEntity):
 
     _attr_translation_key = "last_smdr_line"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    # The raw line holds callers' numbers; turn it on only to check the parser.
+    _attr_entity_registry_enabled_default = False
     _unrecorded_attributes = frozenset({"unreadable_lines", "repeated_lines", "unnamed_extensions"})
 
     def __init__(self, entry: NecPbxConfigEntry) -> None:

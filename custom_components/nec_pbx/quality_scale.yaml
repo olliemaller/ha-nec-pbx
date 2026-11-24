@@ -21,7 +21,9 @@ rules:
   dependency-transparency:
     status: done
     comment: aionecpbx is MIT, on PyPI, and published from GitHub Actions with trusted publishing.
-  docs-actions: done
+  docs-actions:
+    status: done
+    comment: save_caller and its fields are in docs/Automations.md.
   docs-conditions:
     status: exempt
     comment: No custom conditions.
@@ -68,12 +70,20 @@ rules:
   discovery-update-info:
     status: exempt
     comment: No discovery.
-  docs-data-update: done
+  docs-data-update:
+    status: done
+    comment: docs/Features.md, "How the data updates".
   docs-examples: done
-  docs-known-limitations: done
-  docs-supported-devices: done
+  docs-known-limitations:
+    status: done
+    comment: docs/Troubleshooting.md, "Known limitations"; docs/Features.md, "What it can't do".
+  docs-supported-devices:
+    status: done
+    comment: SL2100 tested on hardware; SV9100 layout from sample lines. README, Setup and Troubleshooting agree.
   docs-supported-functions: done
-  docs-troubleshooting: done
+  docs-troubleshooting:
+    status: done
+    comment: docs/Troubleshooting.md, including FreePBX login and Permit, and debug logging.
   docs-use-cases: done
   dynamic-devices:
     status: exempt
@@ -81,8 +91,8 @@ rules:
   entity-category: done
   entity-device-class: done
   entity-disabled-by-default:
-    status: exempt
-    comment: Every entity is cheap (pushed, nothing polled) and used by the dashboards and blueprints.
+    status: done
+    comment: The "Last call log line" diagnostic sensor holds callers' numbers and is disabled by default.
   entity-translations: done
   exception-translations: done
   icon-translations: done
