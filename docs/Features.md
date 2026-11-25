@@ -24,6 +24,7 @@ The *last call* sensors and the daily totals keep their values over a restart. T
 |---|---|
 | Last call | Time of the last call on that extension, with the call attributes |
 | Calls today | Calls on that extension since midnight |
+| Missed calls today | Unanswered calls to that extension since midnight |
 | Talk time today | Answered call time on that extension since midnight |
 | Call | Event entity: fires for every call on that extension |
 
@@ -50,7 +51,7 @@ The NEC's call log only reports a call once it has ended. If your calls also go 
 | On a call | On while a call is answered |
 | Current caller | Who's ringing (phonebook name, caller ID name or number), or `none` |
 | Live call | Event entity: `ringing`, `answered`, `ended` |
-| Do not disturb *extension* | A switch per extension you list: FreePBX's do-not-disturb, the same as dialling \*76. Changes made from a phone show up within a minute |
+| Do not disturb *extension* | A switch per extension you list: FreePBX's do-not-disturb, the same as dialling \*76. FreePBX says straight away when it changes from a phone. An extension you've also named gets the switch on its own device, named "Do not disturb" |
 | FreePBX connection | Diagnostic |
 
 Bus events: `nec_pbx_ringing` when a phone starts ringing, and `nec_pbx_live_call` for every change (`change` is `ringing`, `answered` or `ended`).
@@ -101,7 +102,7 @@ If Home Assistant can't reach the call log for 10 minutes, a **Repairs** warning
 
 ## How the data updates
 
-Nothing is polled. The phone system pushes each call record over the SMDR connection the moment a call ends, and the entities update straight away. FreePBX pushes ringing, answered and ended as they happen. The only thing read on a timer is the state of the do-not-disturb switches, every 30 seconds, so changes made from a phone show up.
+Nothing is polled. The phone system pushes each call record over the SMDR connection the moment a call ends, and the entities update straight away. FreePBX pushes ringing, answered and ended as they happen. FreePBX also pushes do-not-disturb changes through its `Custom:DND<extension>` hint. The switches still read the state on a timer as a fallback: every 30 seconds until FreePBX has pushed a change, then every 5 minutes. If FreePBX's do-not-disturb hints are off (Settings > Advanced Settings), they simply keep checking every 30 seconds.
 
 ## What it can't do
 

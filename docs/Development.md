@@ -3,7 +3,7 @@
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements_test.txt ruff mypy
-pip install aionecpbx==0.2.2
+pip install aionecpbx==0.2.3
 pytest
 ruff check . && ruff format --check .
 mypy --strict --implicit-reexport --ignore-missing-imports custom_components/nec_pbx

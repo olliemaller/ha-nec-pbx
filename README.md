@@ -46,7 +46,8 @@
 | **Missed calls** | A "Last missed call" sensor, and a [ready-made blueprint](https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/Automations.md#missed-call-blueprint) that notifies your phone. |
 | **Call event** | One **Call** event per finished call, typed incoming, missed, outgoing or internal, ready to pick in the automation editor. |
 | **Every room and line** | Each extension and outside line you name gets its own device with its last call, calls today, talk time and a Call event. |
-| **Totals** | Calls, missed calls and talk time for today, this week and this month, the longest call today and unknown callers today. |
+| **Totals** | Calls, missed calls and talk time for today, this week and this month, the longest call today and unknown callers today. Calls, missed calls and talk time today for each extension. |
+| **Missed-call list** | Optional: each missed call goes on a Home Assistant to-do list as "Call back ...", and is ticked off when you call that number back. |
 | **Call history** | Every call on a calendar, kept across restarts. |
 | **Live from FreePBX** | Optional: ringing, on a call, who's calling, do-not-disturb switches, and a blueprint that announces callers on your speakers. |
 | **Daily counts** | Calls today, missed calls today and talk time today, reset at midnight. Calls the phone system prints again after a reconnect or restart are never counted twice. |

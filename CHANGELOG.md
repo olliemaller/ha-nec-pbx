@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0
+
+Needs aionecpbx 0.2.3.
+
+**New**
+
+- **Missed-call list.** Choose a to-do list under **Missed-call list** in the options, and each missed call adds an item such as "Call back 0491570156 (Alex) missed 3:42 pm at Reception". When someone calls that number back, the item is ticked off by itself. Calls with a hidden number are left off.
+- **Missed calls today on each extension.** Each named extension's device has a "Missed calls today" sensor, reset at midnight like the other daily totals.
+- **Do-not-disturb straight from FreePBX.** The switches now change the moment do-not-disturb is set anywhere else, such as \*76 on a phone, from FreePBX's `Custom:DND<extension>` hint (aionecpbx 0.2.3). Once FreePBX has sent one of these, the switches only check every 5 minutes as a fallback; until then they keep checking every 30 seconds, so a FreePBX with its do-not-disturb hints turned off still works.
+- A do-not-disturb switch for an extension you've also named under **Extensions** is now on that extension's device, named "Do not disturb". Its entity ID doesn't change.
+
 ## 0.8.2
 
 Released 24 November 2026. Needs aionecpbx 0.2.2.

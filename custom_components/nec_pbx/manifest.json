@@ -16,7 +16,7 @@
     "aionecpbx"
   ],
   "requirements": [
-    "aionecpbx==0.2.2"
+    "aionecpbx==0.2.3"
   ],
-  "version": "0.8.2"
+  "version": "0.9.0"
 }

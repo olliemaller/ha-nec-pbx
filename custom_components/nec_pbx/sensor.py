@@ -116,10 +116,21 @@ async def async_setup_entry(
         def on_ext(record: SmdrRecord, ext: str = ext) -> bool:
             return record.station == ext
 
+        def missed_on_ext(record: SmdrRecord, ext: str = ext) -> bool:
+            return record.missed and record.station == ext
+
         entities += [
             StationLastCallSensor(entry, ext, name),
             CallCountSensor(
                 entry, f"station_{ext}_calls_today", DAY, on_ext, device, "extension_calls_today"
+            ),
+            CallCountSensor(
+                entry,
+                f"station_{ext}_missed_calls_today",
+                DAY,
+                missed_on_ext,
+                device,
+                "extension_missed_calls_today",
             ),
             TalkTimeSensor(
                 entry,

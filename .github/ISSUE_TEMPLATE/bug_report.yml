@@ -8,7 +8,7 @@ body:
     validations: {required: true}
   - type: input
     id: version
-    attributes: {label: Integration version, description: "Settings > Devices & services > NEC PBX shows it.", placeholder: "for example 0.8.2"}
+    attributes: {label: Integration version, description: "Settings > Devices & services > NEC PBX shows it.", placeholder: "for example 0.9.0"}
     validations: {required: true}
   - type: input
     id: pbx

@@ -7,7 +7,7 @@ rules:
   action-setup: done
   appropriate-polling:
     status: exempt
-    comment: Push. The phone system sends each call as it ends; only the optional FreePBX do-not-disturb switches are read.
+    comment: Push. The phone system sends each call as it ends, and FreePBX pushes do-not-disturb changes; the optional do-not-disturb switches are also read every 30 seconds, or every 5 minutes once FreePBX has pushed one.
   brands:
     status: done
     comment: Icons, logos and dark variants in custom_components/nec_pbx/brand/.

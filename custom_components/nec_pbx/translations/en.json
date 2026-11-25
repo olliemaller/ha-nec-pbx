@@ -56,7 +56,8 @@
           "ami_user": "FreePBX manager user",
           "ami_secret": "FreePBX manager password",
           "dnd_extensions": "Do-not-disturb switches for",
-          "phonebook_todo": "Phonebook list"
+          "phonebook_todo": "Phonebook list",
+          "missed_todo": "Missed-call list"
         },
         "data_description": {
           "extensions": "For example `103: Oliver`.",
@@ -67,8 +68,9 @@
           "ami_port": "Usually 5038.",
           "ami_user": "A manager user from FreePBX: Settings > Asterisk Manager Users. It needs read access to call and system, and write access to system for do-not-disturb.",
           "ami_secret": "That manager user's password. Leave it empty to keep the saved one.",
-          "dnd_extensions": "FreePBX extensions that get a do-not-disturb switch, comma separated, for example `901, 902`.",
-          "phonebook_todo": "Optional. A Home Assistant to-do list used as a phonebook, so you can add contacts from the phone app: one item per person with their number in the description (or \"Alex 0491 570 156\" as the item). The phonebook above wins for the same number."
+          "dnd_extensions": "FreePBX extensions that get a do-not-disturb switch, comma separated, for example `901, 902`. An extension also listed above gets the switch on its own device.",
+          "phonebook_todo": "Optional. A Home Assistant to-do list used as a phonebook, so you can add contacts from the phone app: one item per person with their number in the description (or \"Alex 0491 570 156\" as the item). The phonebook above wins for the same number.",
+          "missed_todo": "Optional. A Home Assistant to-do list that gets an item for each missed call, such as \"Call back 0491570156 (Alex) missed 3:42 pm at Reception\". It is ticked off by itself when someone calls that number back."
         }
       }
     },
@@ -149,6 +151,9 @@
       "extension_calls_today": {
         "name": "Calls today"
       },
+      "extension_missed_calls_today": {
+        "name": "Missed calls today"
+      },
       "extension_talk_time_today": {
         "name": "Talk time today"
       },
@@ -189,6 +194,9 @@
     "switch": {
       "do_not_disturb": {
         "name": "Do not disturb {extension}"
+      },
+      "extension_do_not_disturb": {
+        "name": "Do not disturb"
       }
     },
     "calendar": {

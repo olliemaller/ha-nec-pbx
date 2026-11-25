@@ -142,7 +142,7 @@ async def _setup(
             CONF_AMI_PORT: fake.port,
             CONF_AMI_USER: "homeassistant",
             CONF_AMI_SECRET: secret,
-            CONF_DND_EXTENSIONS: "901",
+            CONF_DND_EXTENSIONS: "901, 902",
         },
         unique_id=f"127.0.0.1:{pbx.port}",
     )
@@ -208,7 +208,7 @@ async def test_do_not_disturb_switch(hass: HomeAssistant, ami) -> None:
     entry = await _setup(hass, pbx, fake)
     async with asyncio.timeout(3):
         await fake.logged_in.wait()
-    switch = "switch.home_phones_do_not_disturb_901"
+    switch = "switch.nec_line_2_do_not_disturb"
     await _wait(hass, lambda: hass.states.get(switch).state != "unavailable")
     await hass.services.async_call("switch", "turn_on", {"entity_id": switch}, blocking=True)
     assert fake.db["DND/901"] == "YES"
@@ -221,6 +221,35 @@ async def test_do_not_disturb_switch(hass: HomeAssistant, ami) -> None:
 
     await async_update_entity(hass, switch)
     assert hass.states.get(switch).state == "on"
+
+    # The switch is on the extension's own device.
+    from homeassistant.helpers import device_registry as dr, entity_registry as er
+
+    device = dr.async_get(hass).async_get(er.async_get(hass).async_get(switch).device_id)
+    assert device.name == "NEC Line 2"
+
+    # FreePBX pushes the change (*76 on a phone): no need to wait for a check.
+    await fake.event(Event="DeviceStateChange", Device="Custom:DND901", State="NOT_INUSE")
+    await _wait(hass, lambda: hass.states.get(switch).state == "off")
+    await fake.event(Event="DeviceStateChange", Device="Custom:DND902", State="BUSY")
+    await fake.event(Event="DeviceStateChange", Device="Custom:DND901", State="BUSY")
+    await _wait(hass, lambda: hass.states.get(switch).state == "on")
+    assert entry.runtime_data.dnd_pushed
+    # 902 isn't a named extension, so its switch stays on the phone system's device.
+    assert hass.states.get("switch.home_phones_do_not_disturb_902").state == "on"
+
+    # After a push, the regular check is skipped until DND_FALLBACK_POLL has passed.
+    from datetime import timedelta
+    from unittest.mock import AsyncMock, patch
+
+    get_dnd = AsyncMock(return_value=False)
+    with patch.object(entry.runtime_data.ami, "get_dnd", get_dnd):
+        await async_update_entity(hass, switch)
+        get_dnd.assert_not_awaited()
+        with patch("custom_components.nec_pbx.switch.DND_FALLBACK_POLL", timedelta(0)):
+            await async_update_entity(hass, switch)
+        get_dnd.assert_awaited_once()
+    assert hass.states.get(switch).state == "off"
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 
