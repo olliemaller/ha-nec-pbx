@@ -7,7 +7,9 @@
   <a href="https://github.com/olliemaller/ha-nec-pbx/releases"><img src="https://img.shields.io/github/v/release/olliemaller/ha-nec-pbx?style=for-the-badge&color=FFFFFF&labelColor=000000&include_prereleases" alt="Release"></a>
   <a href="https://github.com/olliemaller/ha-nec-pbx/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/olliemaller/ha-nec-pbx/validate.yml?branch=main&style=for-the-badge&label=checks&labelColor=000000" alt="Checks"></a>
   <img src="https://img.shields.io/badge/Home%20Assistant-2026.2.3%2B-FFFFFF?style=for-the-badge&logo=homeassistant&logoColor=white&labelColor=000000" alt="Home Assistant 2026.2.3+">
-  <a href="https://github.com/olliemaller/ha-nec-pbx/blob/main/LICENSE"><img src="https://img.shields.io/github/license/olliemaller/ha-nec-pbx?style=for-the-badge&color=FFFFFF&labelColor=000000" alt="Licence"></a>
+  <a href="https://github.com/olliemaller/ha-nec-pbx/blob/main/LICENSE"><img src="https://img.shields.io/github/license/olliemaller/ha-nec-pbx?style=for-the-badge&label=licence&color=FFFFFF&labelColor=000000" alt="Licence"></a>
+  <a href="https://maller.com.au/projects/nec-pbx/"><img src="https://img.shields.io/badge/Read-the%20write--up-FFFFFF?style=for-the-badge&labelColor=000000" alt="Read the write-up"></a>
+  <a href="https://maller.com.au/"><img src="https://img.shields.io/badge/Site-maller.com.au-FFFFFF?style=for-the-badge&labelColor=000000" alt="maller.com.au"></a>
 </p>
 
 <p align="center">
@@ -82,7 +84,7 @@ If you run [nec-ai-attendant](https://github.com/olliemaller/nec-ai-attendant), 
 
 plus the `nec_pbx.attendant_mark_message_done` and `nec_pbx.attendant_set_answering` actions, and blueprints that announce calls it puts through on each extension's speakers and notify your phone of new messages. It updates live over the engine's event websocket and checks every 30 seconds as well. The engine fires its own `nec_ai_attendant_call` event, so this integration doesn't repeat it.
 
-Nothing changes until you turn it on, and the phone system keeps working if the engine is off. [How to set it up](https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/AI-attendant.md). See also the [dashboard](https://github.com/olliemaller/nec-ai-attendant-dashboard) and the [write-up](https://github.com/olliemaller/nec-ai-attendant-writeup) of how it was built.
+Nothing changes until you turn it on, and the phone system keeps working if the engine is off. [How to set it up](https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/AI-attendant.md). See also the [dashboard](https://github.com/olliemaller/nec-ai-attendant-dashboard) the [write-up](https://github.com/olliemaller/nec-ai-attendant-writeup) of how it was built, and the [AI phone attendant page](https://maller.com.au/projects/ai-phone-attendant/) on maller.com.au.
 
 ## Help and contributing
 
