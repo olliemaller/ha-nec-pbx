@@ -35,4 +35,5 @@ The parser is in aionecpbx, so a new layout is a change there:
 | `__init__.py` | Runs the clients, keeps the call history and fires the events. |
 | `sensor.py`, `binary_sensor.py` | The entities. |
 | `config_flow.py` | Setup, reconfigure and options. |
+| `attendant.py` | The optional AI attendant: the engine's HTTP API client, its coordinator and the event websocket. Tested against a fake engine in `tests/test_attendant.py`. |
 | `diagnostics.py` | Diagnostics with numbers masked. |

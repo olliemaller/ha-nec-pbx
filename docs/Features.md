@@ -56,6 +56,10 @@ The NEC's call log only reports a call once it has ended. If your calls also go 
 
 Bus events: `nec_pbx_ringing` when a phone starts ringing, and `nec_pbx_live_call` for every change (`change` is `ringing`, `answered` or `ended`).
 
+## AI attendant (optional)
+
+If you run the separate [nec-ai-attendant](https://github.com/olliemaller/nec-ai-attendant) engine and enter its address in the options, an **AI attendant** device appears with an **Answer outside calls** switch, **New messages**, **Last call**, **Call in progress** and **Average response time**. See [AI attendant](AI-attendant.md) for every entity, action and blueprint.
+
 ## Call attributes
 
 | Attribute | Example | |
@@ -103,6 +107,8 @@ If Home Assistant can't reach the call log for 10 minutes, a **Repairs** warning
 ## How the data updates
 
 Nothing is polled. The phone system pushes each call record over the SMDR connection the moment a call ends, and the entities update straight away. FreePBX pushes ringing, answered and ended as they happen. FreePBX also pushes do-not-disturb changes through its `Custom:DND<extension>` hint. The switches still read the state on a timer as a fallback: every 30 seconds until FreePBX has pushed a change, then every 5 minutes. If FreePBX's do-not-disturb hints are off (Settings > Advanced Settings), they simply keep checking every 30 seconds.
+
+The optional AI attendant is the one part that polls: every 30 seconds, or every 5 minutes while its event websocket is connected and pushing changes. See [AI attendant](AI-attendant.md#how-the-data-updates).
 
 ## What it can't do
 

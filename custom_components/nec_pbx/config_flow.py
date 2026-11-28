@@ -17,17 +17,21 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.helpers import selector
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 try:  # Home Assistant 2026.10 moved its schemas to probatio.
     import probatio as vol
 except ImportError:  # pragma: no cover - older Home Assistant
     import voluptuous as vol  # type: ignore[no-redef]
 
+from .attendant import AttendantApi, AttendantAuthError, AttendantError, normalise_url, valid_url
 from .const import (
     CONF_AMI_HOST,
     CONF_AMI_PORT,
     CONF_AMI_SECRET,
     CONF_AMI_USER,
+    CONF_ATTENDANT_TOKEN,
+    CONF_ATTENDANT_URL,
     CONF_DATE_ORDER,
     CONF_DND_EXTENSIONS,
     CONF_EXTENSIONS,
@@ -41,6 +45,10 @@ from .const import (
 )
 
 _TEXTAREA = selector.TextSelector(selector.TextSelectorConfig(multiline=True))
+_PASSWORD = selector.TextSelector(
+    selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
+)
+_URL = selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.URL))
 _DATE_ORDER = selector.SelectSelector(
     selector.SelectSelectorConfig(
         options=list(DATE_ORDERS),
@@ -156,9 +164,7 @@ class NecPbxConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_AMI_USER, default=options.get(CONF_AMI_USER, "")): str,
-                    vol.Required(CONF_AMI_SECRET): selector.TextSelector(
-                        selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
-                    ),
+                    vol.Required(CONF_AMI_SECRET): _PASSWORD,
                 }
             ),
             description_placeholders={"host": options.get(CONF_AMI_HOST, "")},
@@ -172,7 +178,25 @@ class NecPbxConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class NecPbxOptionsFlow(OptionsFlow):
-    """Room names and the phonebook."""
+    """Room names, the phonebook, FreePBX and the AI attendant."""
+
+    async def _check_attendant(self, user_input: dict[str, Any], errors: dict[str, str]) -> None:
+        """Ask the engine for its status when its address or token changed."""
+        saved = self.config_entry.options
+        url = user_input[CONF_ATTENDANT_URL]
+        if not valid_url(url):
+            errors[CONF_ATTENDANT_URL] = "attendant_bad_url"
+            return
+        token = user_input.get(CONF_ATTENDANT_TOKEN, "")
+        if url == saved.get(CONF_ATTENDANT_URL) and token == saved.get(CONF_ATTENDANT_TOKEN, ""):
+            return  # the running entry already talks to it like this
+        api = AttendantApi(async_get_clientsession(self.hass), url, token)
+        try:
+            await api.status()
+        except AttendantAuthError:
+            errors[CONF_ATTENDANT_TOKEN] = "attendant_auth"
+        except AttendantError:
+            errors[CONF_ATTENDANT_URL] = "attendant_cannot_connect"
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -181,6 +205,17 @@ class NecPbxOptionsFlow(OptionsFlow):
             # The password is never sent to the browser; left blank, the saved one stays.
             if not user_input.get(CONF_AMI_SECRET) and saved.get(CONF_AMI_SECRET):
                 user_input = {**user_input, CONF_AMI_SECRET: saved[CONF_AMI_SECRET]}
+            # The AI attendant is off without an address; its token goes with it.
+            if url := normalise_url(user_input.get(CONF_ATTENDANT_URL) or ""):
+                user_input = {**user_input, CONF_ATTENDANT_URL: url}
+                if not user_input.get(CONF_ATTENDANT_TOKEN) and saved.get(CONF_ATTENDANT_TOKEN):
+                    user_input[CONF_ATTENDANT_TOKEN] = saved[CONF_ATTENDANT_TOKEN]
+            else:
+                user_input = {
+                    k: v
+                    for k, v in user_input.items()
+                    if k not in (CONF_ATTENDANT_URL, CONF_ATTENDANT_TOKEN)
+                }
             for key in (CONF_EXTENSIONS, CONF_PHONEBOOK, CONF_LINES):
                 text = user_input.get(key, "")
                 lines = [line for line in text.splitlines() if line.strip()]
@@ -205,6 +240,8 @@ class NecPbxOptionsFlow(OptionsFlow):
                     errors[CONF_AMI_USER] = "ami_auth"
                 except (OSError, TimeoutError, ConnectionError):
                     errors[CONF_AMI_HOST] = "ami_cannot_connect"
+            if not errors and user_input.get(CONF_ATTENDANT_URL):
+                await self._check_attendant(user_input, errors)
             if not errors:
                 return self.async_create_entry(data=user_input)
         current = user_input or saved
@@ -246,13 +283,16 @@ class NecPbxOptionsFlow(OptionsFlow):
                         CONF_AMI_USER,
                         description={"suggested_value": current.get(CONF_AMI_USER, "")},
                     ): str,
-                    vol.Optional(CONF_AMI_SECRET): selector.TextSelector(
-                        selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
-                    ),
+                    vol.Optional(CONF_AMI_SECRET): _PASSWORD,
                     vol.Optional(
                         CONF_DND_EXTENSIONS,
                         description={"suggested_value": current.get(CONF_DND_EXTENSIONS, "")},
                     ): str,
+                    vol.Optional(
+                        CONF_ATTENDANT_URL,
+                        description={"suggested_value": current.get(CONF_ATTENDANT_URL, "")},
+                    ): _URL,
+                    vol.Optional(CONF_ATTENDANT_TOKEN): _PASSWORD,
                 }
             ),
             errors=errors,

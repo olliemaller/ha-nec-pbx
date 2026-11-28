@@ -1,4 +1,5 @@
-"""Do-not-disturb switches for FreePBX extensions (needs the FreePBX connection)."""
+"""Do-not-disturb switches for FreePBX extensions (needs the FreePBX connection), and
+the AI attendant's "Answer outside calls" switch."""
 
 from __future__ import annotations
 
@@ -12,8 +13,9 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import NecPbxConfigEntry
+from .attendant import AttendantCoordinator
 from .const import CONF_DND_EXTENSIONS, DND_FALLBACK_POLL, DOMAIN, SIGNAL_DND
-from .entity import NecPbxEntity
+from .entity import AttendantEntity, NecPbxEntity
 
 PARALLEL_UPDATES = 1
 
@@ -28,12 +30,33 @@ async def async_setup_entry(
     entry: NecPbxConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    if entry.runtime_data.ami is None:
-        return
-    async_add_entities(
-        NecPbxDndSwitch(entry, ext)
-        for ext in dnd_extensions(entry.options.get(CONF_DND_EXTENSIONS, ""))
-    )
+    entities: list[SwitchEntity] = []
+    if (attendant := entry.runtime_data.attendant) is not None:
+        entities.append(AnswerOutsideCallsSwitch(entry, attendant))
+    if entry.runtime_data.ami is not None:
+        entities += [
+            NecPbxDndSwitch(entry, ext)
+            for ext in dnd_extensions(entry.options.get(CONF_DND_EXTENSIONS, ""))
+        ]
+    async_add_entities(entities)
+
+
+class AnswerOutsideCallsSwitch(AttendantEntity, SwitchEntity):
+    """On = the AI attendant answers outside calls; off = they ring as normal."""
+
+    def __init__(self, entry: NecPbxConfigEntry, coordinator: AttendantCoordinator) -> None:
+        super().__init__(entry, coordinator, "answer_outside_calls")
+
+    @property
+    def is_on(self) -> bool | None:
+        value = self.attendant.status.get("answering_outside")
+        return None if value is None else bool(value)
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.coordinator.async_set_answering(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.coordinator.async_set_answering(False)
 
 
 class NecPbxDndSwitch(NecPbxEntity, SwitchEntity):

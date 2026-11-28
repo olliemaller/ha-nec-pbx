@@ -1,0 +1,63 @@
+blueprint:
+  name: NEC PBX, notify me of AI attendant messages
+  description: >-
+    Sends a phone notification when the AI attendant takes a message, with who
+    called, who it's for, the number to call back and the message. Needs the
+    separate nec-ai-attendant engine, which fires the `nec_ai_attendant_call`
+    event itself. Mark the message done with the `nec_pbx.attendant_mark_message_done`
+    action, or from the engine's dashboard.
+  domain: automation
+  author: olliemaller
+  source_url: https://github.com/olliemaller/ha-nec-pbx/blob/main/blueprints/automation/nec_pbx/attendant_message_notification.yaml
+  input:
+    notify_device:
+      name: Phone to notify
+      description: A phone with the Home Assistant app.
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+    for_person:
+      name: Only messages for
+      description: >-
+        A name from the attendant's directory, for example Sam. Leave it empty
+        to be told about every message.
+      default: ""
+      selector:
+        text:
+    title:
+      name: Title
+      default: New phone message
+      selector:
+        text:
+
+mode: queued
+max: 10
+
+triggers:
+  - trigger: event
+    event_type: nec_ai_attendant_call
+    event_data:
+      stage: message
+
+variables:
+  only_for: !input for_person
+  call: "{{ trigger.event.data }}"
+
+conditions:
+  - condition: template
+    value_template: >-
+      {{ not only_for
+         or ((call.for_person or call.target_name or '') | string | lower) == (only_for | lower) }}
+
+actions:
+  - domain: mobile_app
+    type: notify
+    device_id: !input notify_device
+    title: !input title
+    message: >-
+      {%- set person = call.for_person or call.target_name or '' -%}
+      {%- set callback = call.callback_number or call.caller or '' -%}
+      {{ call.caller_name or call.caller or 'Someone' }}
+      {{- ' for ' ~ person if person else '' }}
+      {{- ' (' ~ callback ~ ')' if callback else '' }}: {{ call.message or '(no message)' }}

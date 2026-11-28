@@ -26,6 +26,7 @@
   <a href="https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/Setup.md">Set up</a> ·
   <a href="https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/Features.md">Features</a> ·
   <a href="https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/Automations.md">Automations</a> ·
+  <a href="https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/AI-attendant.md">AI attendant</a> ·
   <a href="https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/Troubleshooting.md">Troubleshooting</a> ·
   <a href="https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/README.md">All docs</a>
 </p>
@@ -59,6 +60,7 @@
 | **Fast and local** | Pushed from the phone system the moment a call ends. Notices a dead connection within about 90 seconds and reconnects by itself. No cloud. |
 | **Both NEC layouts** | Reads the `IC/OG` layout and the SV9100-style `PIN/POT/PTRS/IVIN` layout, with day/month or month/day dates (automatic, or set it under **Configure**). |
 | **Private diagnostics** | Phone numbers are masked in diagnostics, so you can share them safely. |
+| **AI attendant** | Optional, off by default: see below. |
 
 ## Quick start
 
@@ -67,7 +69,20 @@
 3. **Add the integration** with the phone system's IP address and the SMDR port.
 4. **Name your rooms** under **Configure**, one per line, like `103: Oliver`, and add a phonebook, like `0491 570 006: Mum`.
 
-Needs an NEC SL2100 or SV9100 on your network, and Home Assistant 2026.2.3 or newer (the oldest version the checks run against). The two blueprints need Home Assistant 2026.7.0 or newer. Tested on an SL2100 (Australian, software 5.21); the SV9100 layout is read from sample lines. Please [tell us how it went](https://github.com/olliemaller/ha-nec-pbx/issues/new) on yours.
+Needs an NEC SL2100 or SV9100 on your network, and Home Assistant 2026.2.3 or newer (the oldest version the checks run against). The missed-call and caller announcement blueprints need Home Assistant 2026.7.0 or newer. Tested on an SL2100 (Australian, software 5.21); the SV9100 layout is read from sample lines. Please [tell us how it went](https://github.com/olliemaller/ha-nec-pbx/issues/new) on yours.
+
+## AI attendant (optional)
+
+If you run [nec-ai-attendant](https://github.com/olliemaller/nec-ai-attendant), a separate voice assistant that answers your calls, puts callers through and takes messages, enter its address and API token under **Configure**. An **AI attendant** device then shows:
+
+- an **Answer outside calls** switch,
+- **New messages**, with the latest messages as an attribute,
+- **Last call**, with the caller and how it ended,
+- **Call in progress** and **Average response time**,
+
+plus the `nec_pbx.attendant_mark_message_done` and `nec_pbx.attendant_set_answering` actions, and blueprints that announce calls it puts through on each extension's speakers and notify your phone of new messages. It updates live over the engine's event websocket and checks every 30 seconds as well. The engine fires its own `nec_ai_attendant_call` event, so this integration doesn't repeat it.
+
+Nothing changes until you turn it on, and the phone system keeps working if the engine is off. [How to set it up](https://github.com/olliemaller/ha-nec-pbx/blob/main/docs/AI-attendant.md). See also the [dashboard](https://github.com/olliemaller/nec-ai-attendant-dashboard) and the [write-up](https://github.com/olliemaller/nec-ai-attendant-writeup) of how it was built.
 
 ## Help and contributing
 

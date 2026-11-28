@@ -10,7 +10,9 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .attendant import AttendantCoordinator, AttendantData
 from .const import DOMAIN, SIGNAL_UPDATE
 
 if TYPE_CHECKING:
@@ -32,6 +34,30 @@ def pbx_device_info(entry: NecPbxConfigEntry) -> DeviceInfo:
         model="SL2100 / SV9100",
         configuration_url=f"http://{entry.data['host']}",
     )
+
+
+def attendant_identifier(entry: NecPbxConfigEntry) -> tuple[str, str]:
+    """The AI attendant device's identifier."""
+    return (DOMAIN, f"{entry.entry_id}_attendant")
+
+
+def attendant_device_info(entry: NecPbxConfigEntry, version: str | None) -> DeviceInfo:
+    """The AI attendant engine, under the phone system."""
+    parent: dict[str, Any]
+    pbx_device_id = entry.runtime_data.pbx_device_id
+    if SUPPORTS_VIA_DEVICE_ID and pbx_device_id:
+        parent = {"via_device_id": pbx_device_id}
+    else:  # pragma: no cover - Home Assistant before 2026.10
+        parent = {"via_device": (DOMAIN, entry.entry_id)}
+    info: DeviceInfo = DeviceInfo(
+        identifiers={attendant_identifier(entry)},
+        name="AI attendant",
+        manufacturer="nec-ai-attendant",
+        model="AI attendant",
+        sw_version=version,
+        **parent,  # type: ignore[typeddict-item]
+    )
+    return info
 
 
 class NecPbxEntity(Entity):
@@ -85,3 +111,25 @@ class NecPbxEntity(Entity):
     @callback
     def _handle_update(self) -> None:
         self.async_write_ha_state()
+
+
+class AttendantEntity(CoordinatorEntity[AttendantCoordinator]):
+    """An entity on the AI attendant's device, updated by its coordinator."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self, entry: NecPbxConfigEntry, coordinator: AttendantCoordinator, key: str
+    ) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_attendant_{key}"
+        self._attr_translation_key = f"attendant_{key}"
+        version = coordinator.data.status.get("version") if coordinator.data else None
+        self._attr_device_info = attendant_device_info(
+            entry, str(version) if version is not None else None
+        )
+
+    @property
+    def attendant(self) -> AttendantData:
+        """The engine's last answer (empty until the first one)."""
+        return self.coordinator.data or AttendantData()

@@ -1,0 +1,95 @@
+blueprint:
+  name: NEC PBX, announce calls the AI attendant puts through
+  description: >-
+    When the AI attendant puts a caller through to an extension, says who it is
+    on the speakers you choose, for example "Alex for Sam, on the phone now".
+    Make one automation from this blueprint for each extension, each with its
+    own speakers. Needs the separate nec-ai-attendant engine, which fires the
+    `nec_ai_attendant_call` event itself, and a text-to-speech engine such as
+    Piper.
+  domain: automation
+  author: olliemaller
+  source_url: https://github.com/olliemaller/ha-nec-pbx/blob/main/blueprints/automation/nec_pbx/attendant_transfer_announcement.yaml
+  input:
+    extension:
+      name: Extension
+      description: >-
+        The extension number calls are put through to, for example 103. Leave
+        it empty to announce calls put through to any extension.
+      default: ""
+      selector:
+        text:
+    tts_engine:
+      name: Text-to-speech
+      selector:
+        entity:
+          filter:
+            - domain: tts
+    speakers:
+      name: Speakers
+      description: Where to announce calls for this extension.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: media_player
+    unknown_caller:
+      name: When the caller's name isn't known, call them
+      default: "A caller"
+      selector:
+        text:
+    after_text:
+      name: Say after the name
+      default: "on the phone now"
+      selector:
+        text:
+    quiet_from:
+      name: Quiet from
+      description: No announcements between these times.
+      default: "21:30:00"
+      selector:
+        time:
+    quiet_until:
+      name: Quiet until
+      default: "07:00:00"
+      selector:
+        time:
+
+mode: queued
+max: 5
+max_exceeded: silent
+
+triggers:
+  - trigger: event
+    event_type: nec_ai_attendant_call
+    event_data:
+      stage: transfer
+
+variables:
+  extension: !input extension
+  unknown_caller: !input unknown_caller
+  after_text: !input after_text
+  call: "{{ trigger.event.data }}"
+  put_through_to: "{{ call.extension or call.target or '' }}"
+  person: "{{ call.target_name or '' }}"
+  caller: "{{ call.caller_name or unknown_caller }}"
+  message: >-
+    {{ caller }}{{ ' for ' ~ person if person else '' }}{{ ', ' ~ after_text if after_text else '' }}
+
+conditions:
+  - condition: template
+    value_template: "{{ not extension or (put_through_to | string) == (extension | string) }}"
+  - condition: not
+    conditions:
+      - condition: time
+        after: !input quiet_from
+        before: !input quiet_until
+
+actions:
+  - action: tts.speak
+    target:
+      entity_id: !input tts_engine
+    data:
+      media_player_entity_id: !input speakers
+      message: "{{ message }}"
+      cache: false

@@ -99,6 +99,10 @@ Says *"Phone call from Alex"* on your speakers while the phone is still ringing,
 
 Both blueprints need Home Assistant 2026.7.0 or newer, for the event entity trigger.
 
+## AI attendant
+
+If you run the optional [AI attendant](AI-attendant.md), two more blueprints announce calls it puts through on the speakers for each extension, and send a phone notification for each message it takes. They use the `nec_ai_attendant_call` event, which the engine fires itself. Details and import buttons are on the [AI attendant](AI-attendant.md#blueprints) page, with the `nec_pbx.attendant_mark_message_done` and `nec_pbx.attendant_set_answering` actions.
+
 ## Save a caller to the phonebook
 
 The `nec_pbx.save_caller` action adds a name to the phonebook: to the to-do list if you use one, otherwise to the phonebook in the options. It takes effect straight away, without a reload.

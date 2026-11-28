@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.10.0
+
+Needs aionecpbx 0.2.3.
+
+**New**
+
+- **AI attendant add-on (optional, off by default).** If you run the separate [nec-ai-attendant](https://github.com/olliemaller/nec-ai-attendant) engine, enter its address and API token under **Configure**; the options check the engine answers (`GET /api/status`) before saving. An **AI attendant** device then has an **Answer outside calls** switch, **New messages** (with the latest messages as an attribute), **Last call** (caller, outcome and time), **Call in progress** and **Average response time** (over the last 7 days).
+- It checks the engine every 30 seconds, and keeps the engine's event websocket open so a call starting or ending, or a new message, shows straight away. While the websocket is connected the check slows to every 5 minutes; if it drops, it reconnects after 5 seconds, then waits longer each time, up to 5 minutes.
+- Actions `nec_pbx.attendant_mark_message_done` and `nec_pbx.attendant_set_answering`.
+- Two blueprints: announce calls the attendant puts through on the speakers for each extension, and send a phone notification for each message it takes. Both use the `nec_ai_attendant_call` event, which the engine fires on the event bus itself; this integration doesn't fire it again.
+- A Repairs issue if the engine rejects the API token, cleared by itself once it's fixed.
+- The phone system and its call log carry on as normal if the engine is off; only the AI attendant entities are unavailable.
+
+**Privacy**
+
+- Diagnostics include the AI attendant's state with the API token redacted, and no callers or messages.
+- The new messages and the attendant's last caller aren't written to the recorder database.
+
+**Docs**
+
+- A new [AI attendant](docs/AI-attendant.md) page, linking the engine, its [dashboard](https://github.com/olliemaller/nec-ai-attendant-dashboard) and the [write-up](https://github.com/olliemaller/nec-ai-attendant-writeup).
+
 ## 0.9.0
 
 Needs aionecpbx 0.2.3.

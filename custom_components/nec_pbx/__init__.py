@@ -38,6 +38,7 @@ from homeassistant.helpers import (
     device_registry as dr,
     issue_registry as ir,
 )
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 from homeassistant.helpers.storage import Store
@@ -49,11 +50,14 @@ try:  # Home Assistant 2026.10 moved its schemas to probatio.
 except ImportError:  # pragma: no cover - older Home Assistant
     import voluptuous as vol  # type: ignore[no-redef]
 
+from .attendant import AttendantApi, AttendantCoordinator
 from .const import (
     CONF_AMI_HOST,
     CONF_AMI_PORT,
     CONF_AMI_SECRET,
     CONF_AMI_USER,
+    CONF_ATTENDANT_TOKEN,
+    CONF_ATTENDANT_URL,
     CONF_DATE_ORDER,
     CONF_EXTENSIONS,
     CONF_LINES,
@@ -71,6 +75,8 @@ from .const import (
     OUTAGE_ISSUE_AFTER,
     RECENT_CALLS,
     SEEN_LINES,
+    SERVICE_ATTENDANT_MARK_DONE,
+    SERVICE_ATTENDANT_SET_ANSWERING,
     SERVICE_SAVE_CALLER,
     SIGNAL_CALL,
     SIGNAL_DND,
@@ -79,7 +85,7 @@ from .const import (
     SIGNAL_UPDATE,
     STORAGE_VERSION,
 )
-from .entity import pbx_device_info
+from .entity import attendant_identifier, pbx_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -124,6 +130,8 @@ class NecPbxData:
     options: dict[str, Any] = field(default_factory=dict)
     # FreePBX has pushed a do-not-disturb change, so the switches can poll less.
     dnd_pushed: bool = False
+    # The optional AI attendant engine, when its address is set in the options.
+    attendant: AttendantCoordinator | None = None
 
 
 type NecPbxConfigEntry = ConfigEntry[NecPbxData]
@@ -289,6 +297,46 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             }
         ),
         supports_response=SupportsResponse.OPTIONAL,
+    )
+
+    def _attendant(call: ServiceCall) -> AttendantCoordinator:
+        entries: list[NecPbxConfigEntry] = list(hass.config_entries.async_loaded_entries(DOMAIN))
+        if entry_id := call.data.get("config_entry_id"):
+            entries = [e for e in entries if e.entry_id == entry_id]
+        for entry in entries:
+            if entry.runtime_data.attendant is not None:
+                return entry.runtime_data.attendant
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="attendant_not_set_up"
+        )
+
+    async def mark_message_done(call: ServiceCall) -> None:
+        await _attendant(call).async_mark_message(str(call.data["message_id"]), "done")
+
+    async def set_answering(call: ServiceCall) -> None:
+        await _attendant(call).async_set_answering(call.data["enabled"])
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_ATTENDANT_MARK_DONE,
+        mark_message_done,
+        schema=vol.Schema(
+            {
+                vol.Required("message_id"): cv.string,
+                vol.Optional("config_entry_id"): cv.string,
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_ATTENDANT_SET_ANSWERING,
+        set_answering,
+        schema=vol.Schema(
+            {
+                vol.Required("enabled"): cv.boolean,
+                vol.Optional("config_entry_id"): cv.string,
+            }
+        ),
     )
     return True
 
@@ -527,6 +575,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: NecPbxConfigEntry) -> bo
         )
         entry.runtime_data.ami = ami
 
+    if attendant_url := entry.options.get(CONF_ATTENDANT_URL):
+        # Optional and separately run: if the engine is down, the phone system still
+        # sets up, and the AI attendant entities are unavailable until it answers.
+        token = entry.options.get(CONF_ATTENDANT_TOKEN, "")
+        api = AttendantApi(async_get_clientsession(hass), attendant_url, token)
+        attendant = AttendantCoordinator(hass, entry, api)
+        await attendant.async_refresh()
+        entry.runtime_data.attendant = attendant
+        entry.async_on_unload(attendant.delete_issue)
+        entry.async_create_background_task(
+            hass, attendant.async_listen(), "nec_pbx AI attendant events"
+        )
+
     @callback
     def _save_now() -> None:
         hass.async_create_task(store.async_save(_seen_data()))
@@ -579,6 +640,8 @@ async def async_remove_config_entry_device(
     current = {(DOMAIN, entry.entry_id)}
     current |= {(DOMAIN, f"{entry.entry_id}_extension_{ext}") for ext in data.extensions}
     current |= {(DOMAIN, f"{entry.entry_id}_line_{trunk}") for trunk in data.lines}
+    if data.attendant is not None:
+        current.add(attendant_identifier(entry))
     return not device.identifiers & current
 
 

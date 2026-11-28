@@ -40,6 +40,10 @@ The integration reconnects by itself, waiting a little longer each time (5 secon
 - **Logged in, but nothing rings**: the manager user needs **Read** access to `call` and `system`. Do-not-disturb switches also need **Write** access to `system`.
 - The **FreePBX connection** sensor's `last_error` attribute says why it last failed.
 
+## AI attendant
+
+See [AI attendant: troubleshooting](AI-attendant.md#troubleshooting).
+
 ## Debug logging
 
 The quickest way: **Settings > Devices & services > NEC PBX > ⋮ > Enable debug logging**. Reproduce the problem, then choose **Disable debug logging**, and your browser downloads the log.

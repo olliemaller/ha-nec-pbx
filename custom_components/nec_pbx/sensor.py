@@ -22,8 +22,9 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.util import dt as dt_util
 
 from . import NecPbxConfigEntry
-from .const import SIGNAL_NEW_RECORD
-from .entity import NecPbxEntity
+from .attendant import AttendantCoordinator
+from .const import ATTENDANT_MESSAGES_SHOWN, ATTENDANT_STATS_DAYS, SIGNAL_NEW_RECORD
+from .entity import AttendantEntity, NecPbxEntity
 
 # Entities are pushed updates; nothing is polled or sent per entity.
 PARALLEL_UPDATES = 0
@@ -155,6 +156,12 @@ async def async_setup_entry(
         ]
     if data.ami is not None:
         entities.append(CurrentCallerSensor(entry))
+    if (attendant := data.attendant) is not None:
+        entities += [
+            AttendantNewMessagesSensor(entry, attendant),
+            AttendantLastCallSensor(entry, attendant),
+            AttendantResponseTimeSensor(entry, attendant),
+        ]
     async_add_entities(entities)
 
 
@@ -459,4 +466,97 @@ class CurrentCallerSensor(NecPbxEntity, SensorEntity):
             "extension": call.extension,
             "station_name": self.data.extensions.get(call.extension or ""),
             "state": call.state,
+        }
+
+
+_MESSAGE_ATTRS = (
+    "id",
+    "call_id",
+    "created_at",
+    "for_person",
+    "caller_name",
+    "callback_number",
+    "message",
+)
+_ATTENDANT_CALL_ATTRS = (
+    "id",
+    "caller",
+    "caller_name",
+    "mode",
+    "outcome",
+    "target",
+    "ended_at",
+    "duration_s",
+)
+
+
+class AttendantNewMessagesSensor(AttendantEntity, SensorEntity):
+    """How many messages the AI attendant has taken that aren't marked done."""
+
+    _attr_native_unit_of_measurement = "messages"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    # Callers' names, numbers and words; keep them out of the recorder database.
+    _unrecorded_attributes = frozenset({"messages"})
+
+    def __init__(self, entry: NecPbxConfigEntry, coordinator: AttendantCoordinator) -> None:
+        super().__init__(entry, coordinator, "new_messages")
+
+    @property
+    def native_value(self) -> int:
+        return len(self.attendant.messages)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "messages": [
+                {key: message.get(key) for key in _MESSAGE_ATTRS}
+                for message in self.attendant.messages[:ATTENDANT_MESSAGES_SHOWN]
+            ]
+        }
+
+
+class AttendantLastCallSensor(AttendantEntity, SensorEntity):
+    """When the AI attendant's last call started, with the caller and how it ended."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _unrecorded_attributes = frozenset({"caller", "caller_name"})
+
+    def __init__(self, entry: NecPbxConfigEntry, coordinator: AttendantCoordinator) -> None:
+        super().__init__(entry, coordinator, "last_call")
+
+    @property
+    def native_value(self) -> datetime | None:
+        call = self.attendant.last_call
+        return dt_util.parse_datetime(str(call.get("started_at") or "")) if call else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        call = self.attendant.last_call
+        return {key: call.get(key) for key in _ATTENDANT_CALL_ATTRS} if call else {}
+
+
+class AttendantResponseTimeSensor(AttendantEntity, SensorEntity):
+    """How long callers wait for the AI attendant's first words, on average."""
+
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfTime.MILLISECONDS
+    _attr_suggested_unit_of_measurement = UnitOfTime.SECONDS
+    _attr_suggested_display_precision = 1
+
+    def __init__(self, entry: NecPbxConfigEntry, coordinator: AttendantCoordinator) -> None:
+        super().__init__(entry, coordinator, "response_time")
+
+    @property
+    def native_value(self) -> float | None:
+        value = self.attendant.stats.get("avg_first_words_ms")
+        return float(value) if isinstance(value, int | float) else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        stats = self.attendant.stats
+        return {
+            "days": ATTENDANT_STATS_DAYS,
+            "speech_to_text_ms": stats.get("avg_stt_ms"),
+            "language_model_ms": stats.get("avg_llm_ms"),
         }

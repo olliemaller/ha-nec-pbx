@@ -5,9 +5,14 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
 from . import NecPbxConfigEntry
+from .const import CONF_AMI_SECRET, CONF_ATTENDANT_TOKEN, CONF_ATTENDANT_URL
+
+# Never in diagnostics: the FreePBX password and the AI attendant's API token.
+TO_REDACT = {CONF_AMI_SECRET, CONF_ATTENDANT_TOKEN}
 
 # Six or more digits, which may be split by single spaces or hyphens
 # ("0491 570 156"). Not next to a colon, so times like "10:00" are left alone.
@@ -29,6 +34,35 @@ def _mask(text: str | None) -> str | None:
     if text is None:
         return None
     return _NUMBER.sub(_hide_digits, text)
+
+
+def _attendant(entry: NecPbxConfigEntry) -> dict[str, Any] | None:
+    """The AI attendant's state, without the token, callers or their messages."""
+    coordinator = entry.runtime_data.attendant
+    if coordinator is None:
+        return None
+    data = coordinator.data
+    status = data.status if data else {}
+    return {
+        **async_redact_data(
+            {
+                CONF_ATTENDANT_URL: entry.options.get(CONF_ATTENDANT_URL),
+                CONF_ATTENDANT_TOKEN: entry.options.get(CONF_ATTENDANT_TOKEN, ""),
+            },
+            TO_REDACT,
+        ),
+        "last_update_success": coordinator.last_update_success,
+        "last_error": coordinator.last_error,
+        "events_connected": coordinator.events_connected,
+        "version": status.get("version"),
+        "uptime_s": status.get("uptime_s"),
+        "models": status.get("models"),
+        "answering_outside": status.get("answering_outside"),
+        "active_calls": status.get("active_calls"),
+        "new_messages": len(data.messages) if data else None,
+        "last_call_outcome": data.last_call.get("outcome") if data and data.last_call else None,
+        "avg_first_words_ms": data.stats.get("avg_first_words_ms") if data else None,
+    }
 
 
 async def async_get_config_entry_diagnostics(
@@ -64,6 +98,7 @@ async def async_get_config_entry_diagnostics(
             if data.ami
             else None
         ),
+        "ai_attendant": _attendant(entry),
         "recent": [
             {
                 **{

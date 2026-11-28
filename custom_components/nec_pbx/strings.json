@@ -44,8 +44,8 @@
   "options": {
     "step": {
       "init": {
-        "title": "Rooms, lines, phonebook and FreePBX",
-        "description": "One entry per line as `number: name`. Each extension and line listed gets its own device. The FreePBX fields are optional: fill them in to see calls ringing live and to switch do-not-disturb.",
+        "title": "Rooms, lines, phonebook, FreePBX and AI attendant",
+        "description": "One entry per line as `number: name`. Each extension and line listed gets its own device. The FreePBX fields are optional: fill them in to see calls ringing live and to switch do-not-disturb. The AI attendant fields are optional too: fill them in only if you run the separate nec-ai-attendant engine.",
         "data": {
           "extensions": "Extensions",
           "phonebook": "Phonebook",
@@ -57,7 +57,9 @@
           "ami_secret": "FreePBX manager password",
           "dnd_extensions": "Do-not-disturb switches for",
           "phonebook_todo": "Phonebook list",
-          "missed_todo": "Missed-call list"
+          "missed_todo": "Missed-call list",
+          "attendant_url": "AI attendant address",
+          "attendant_token": "AI attendant API token"
         },
         "data_description": {
           "extensions": "For example `103: Oliver`.",
@@ -70,14 +72,19 @@
           "ami_secret": "That manager user's password. Leave it empty to keep the saved one.",
           "dnd_extensions": "FreePBX extensions that get a do-not-disturb switch, comma separated, for example `901, 902`. An extension also listed above gets the switch on its own device.",
           "phonebook_todo": "Optional. A Home Assistant to-do list used as a phonebook, so you can add contacts from the phone app: one item per person with their number in the description (or \"Alex 0491 570 156\" as the item). The phonebook above wins for the same number.",
-          "missed_todo": "Optional. A Home Assistant to-do list that gets an item for each missed call, such as \"Call back 0491570156 (Alex) missed 3:42 pm at Reception\". It is ticked off by itself when someone calls that number back."
+          "missed_todo": "Optional. A Home Assistant to-do list that gets an item for each missed call, such as \"Call back 0491570156 (Alex) missed 3:42 pm at Reception\". It is ticked off by itself when someone calls that number back.",
+          "attendant_url": "Optional. The address of your nec-ai-attendant engine, for example `http://192.0.2.20:8099`. Leave it empty to turn the AI attendant off.",
+          "attendant_token": "The engine's `api_token`. Leave it empty to keep the saved one."
         }
       }
     },
     "error": {
       "bad_mapping": "Every line needs a colon, like `103: Oliver`.",
       "ami_auth": "FreePBX rejected that manager user or password.",
-      "ami_cannot_connect": "Couldn't reach the FreePBX manager at that address and port. Check the address, and that this Home Assistant is allowed under the manager user's Permit."
+      "ami_cannot_connect": "Couldn't reach the FreePBX manager at that address and port. Check the address, and that this Home Assistant is allowed under the manager user's Permit.",
+      "attendant_bad_url": "Enter the address with http:// or https://, like `http://192.0.2.20:8099`.",
+      "attendant_cannot_connect": "Couldn't reach the AI attendant at that address, or it didn't answer like one. Check the address and port (8099 by default), and that the engine is running.",
+      "attendant_auth": "The AI attendant rejected that API token."
     }
   },
   "entity": {
@@ -93,6 +100,14 @@
       },
       "freepbx": {
         "name": "FreePBX connection"
+      },
+      "attendant_call_in_progress": {
+        "name": "Call in progress",
+        "state_attributes": {
+          "active_calls": {
+            "name": "Active calls"
+          }
+        }
       }
     },
     "event": {
@@ -189,6 +204,61 @@
       },
       "current_caller": {
         "name": "Current caller"
+      },
+      "attendant_new_messages": {
+        "name": "New messages",
+        "state_attributes": {
+          "messages": {
+            "name": "Messages"
+          }
+        }
+      },
+      "attendant_last_call": {
+        "name": "Last call",
+        "state_attributes": {
+          "caller": {
+            "name": "Caller"
+          },
+          "caller_name": {
+            "name": "Caller name"
+          },
+          "mode": {
+            "name": "Mode"
+          },
+          "outcome": {
+            "name": "Outcome",
+            "state": {
+              "transfer": "Put through",
+              "message": "Took a message",
+              "hangup": "Hung up",
+              "caller_hung_up": "Caller hung up",
+              "fallback": "Passed to a person"
+            }
+          },
+          "target": {
+            "name": "Put through to"
+          },
+          "ended_at": {
+            "name": "Ended"
+          },
+          "duration_s": {
+            "name": "Duration"
+          }
+        }
+      },
+      "attendant_response_time": {
+        "name": "Average response time",
+        "state_attributes": {
+          "days": {
+            "name": "Days"
+          },
+          "speech_to_text_ms": {
+            "name": "Speech to text"
+          },
+          "language_model_ms": {
+            "name": "Language model"
+          }
+        }
       }
     },
     "switch": {
@@ -197,6 +267,9 @@
       },
       "extension_do_not_disturb": {
         "name": "Do not disturb"
+      },
+      "attendant_answer_outside_calls": {
+        "name": "Answer outside calls"
       }
     },
     "calendar": {
@@ -209,6 +282,10 @@
     "call_log_unreachable": {
       "title": "{name}: call log not connected",
       "description": "Home Assistant hasn't been able to read the call log from the phone system at {address} for over 10 minutes (last error: {error}).\n\nCalls made in the meantime aren't lost: the phone system keeps them and sends them when the connection comes back. Check that the phone system is on, that its address hasn't changed, and that no other program (such as call-logging software) is connected to the SMDR port. This message clears itself once the call log reconnects."
+    },
+    "attendant_auth": {
+      "title": "{name}: AI attendant token rejected",
+      "description": "The AI attendant at {url} rejected the API token, so its entities are unavailable. The phone system's call log still works.\n\nOpen **Configure** on the NEC PBX integration and enter the engine's current `api_token`. This message clears itself once the engine accepts it."
     }
   },
   "selector": {
@@ -238,6 +315,34 @@
           "description": "Only needed if you have more than one."
         }
       }
+    },
+    "attendant_mark_message_done": {
+      "name": "Mark AI attendant message done",
+      "description": "Marks a message the AI attendant took as done, so it leaves the New messages sensor.",
+      "fields": {
+        "message_id": {
+          "name": "Message ID",
+          "description": "The `id` of the message, from the New messages sensor's `messages` attribute."
+        },
+        "config_entry_id": {
+          "name": "Phone system",
+          "description": "Only needed if you have more than one."
+        }
+      }
+    },
+    "attendant_set_answering": {
+      "name": "Set AI attendant answering",
+      "description": "Turns answering of outside calls by the AI attendant on or off, like the Answer outside calls switch.",
+      "fields": {
+        "enabled": {
+          "name": "Answer outside calls",
+          "description": "On: the AI attendant answers outside calls. Off: they ring as normal."
+        },
+        "config_entry_id": {
+          "name": "Phone system",
+          "description": "Only needed if you have more than one."
+        }
+      }
     }
   },
   "exceptions": {
@@ -252,6 +357,18 @@
     },
     "dnd_failed": {
       "message": "FreePBX didn't change do-not-disturb: {error}"
+    },
+    "attendant_not_set_up": {
+      "message": "The AI attendant isn't set up. Add its address under Configure on the NEC PBX integration."
+    },
+    "attendant_failed": {
+      "message": "The AI attendant didn't make the change: {error}"
+    },
+    "attendant_auth_failed": {
+      "message": "The AI attendant rejected the API token."
+    },
+    "attendant_unreachable": {
+      "message": "Couldn't reach the AI attendant: {error}"
     }
   }
 }

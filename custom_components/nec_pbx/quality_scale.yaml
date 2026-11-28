@@ -7,13 +7,13 @@ rules:
   action-setup: done
   appropriate-polling:
     status: exempt
-    comment: Push. The phone system sends each call as it ends, and FreePBX pushes do-not-disturb changes; the optional do-not-disturb switches are also read every 30 seconds, or every 5 minutes once FreePBX has pushed one.
+    comment: Push. The phone system sends each call as it ends, and FreePBX pushes do-not-disturb changes; the optional do-not-disturb switches are also read every 30 seconds, or every 5 minutes once FreePBX has pushed one. The optional AI attendant is polled every 30 seconds, or every 5 minutes while its event websocket pushes changes.
   brands:
     status: done
     comment: Icons, logos and dark variants in custom_components/nec_pbx/brand/.
   common-modules:
     status: done
-    comment: No coordinator (push); the base entity is in entity.py.
+    comment: The base entities are in entity.py; the optional AI attendant's DataUpdateCoordinator and API client are in attendant.py. The phone system itself is push, with no coordinator.
   config-flow: done
   config-flow-test-coverage:
     status: done
@@ -23,7 +23,7 @@ rules:
     comment: aionecpbx is MIT, on PyPI, and published from GitHub Actions with trusted publishing.
   docs-actions:
     status: done
-    comment: save_caller and its fields are in docs/Automations.md.
+    comment: save_caller and its fields are in docs/Automations.md; the AI attendant actions are in docs/AI-attendant.md.
   docs-conditions:
     status: exempt
     comment: No custom conditions.
@@ -40,7 +40,7 @@ rules:
   test-before-configure: done
   test-before-setup:
     status: exempt
-    comment: The call log is a long-lived push connection that reconnects by itself; a Repairs issue appears if it stays down.
+    comment: The call log is a long-lived push connection that reconnects by itself; a Repairs issue appears if it stays down. The optional AI attendant is a separate program, so its entities go unavailable rather than stopping the phone system from setting up.
   unique-config-entry: done
 
   # Silver
@@ -50,13 +50,13 @@ rules:
   docs-installation-parameters: done
   entity-unavailable:
     status: done
-    comment: Live call and do-not-disturb entities go unavailable without FreePBX; call history stays, since it's still true.
+    comment: Live call and do-not-disturb entities go unavailable without FreePBX, and AI attendant entities without the engine; call history stays, since it's still true.
   integration-owner: done
   log-when-unavailable: done
   parallel-updates: done
   reauthentication-flow:
     status: done
-    comment: A rejected FreePBX login opens a reauth flow for the manager user and secret. SMDR itself has no login.
+    comment: A rejected FreePBX login opens a reauth flow for the manager user and secret. SMDR itself has no login. A rejected AI attendant token raises a Repairs issue pointing to the options, where the token is changed.
   test-coverage:
     status: done
     comment: 98% overall and at least 95% in every module; CI fails below 95%.
@@ -105,8 +105,8 @@ rules:
   # Platinum
   async-dependency: done
   inject-websession:
-    status: exempt
-    comment: Raw TCP to the phone system and Asterisk manager; no HTTP.
+    status: done
+    comment: The AI attendant uses Home Assistant's shared aiohttp session. The phone system and Asterisk manager are raw TCP.
   strict-typing:
     status: done
     comment: mypy --strict is clean and checked in CI; aionecpbx ships py.typed.

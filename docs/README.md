@@ -11,6 +11,7 @@ Everything the [README](../README.md) leaves out.
 
 - [Features](Features.md): every entity and attribute
 - [Automations](Automations.md): events, a missed-call notification and dashboard examples
+- [AI attendant](AI-attendant.md): the optional add-on for the separate nec-ai-attendant engine
 
 ## Behind the scenes
 

@@ -1,4 +1,4 @@
-"""Connection status for NEC PBX."""
+"""Connection status, live calls from FreePBX and the AI attendant's call in progress."""
 
 from __future__ import annotations
 
@@ -12,7 +12,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import NecPbxConfigEntry
-from .entity import NecPbxEntity
+from .attendant import AttendantCoordinator
+from .entity import AttendantEntity, NecPbxEntity
 
 # Entities are pushed updates; nothing is polled or sent per entity.
 PARALLEL_UPDATES = 0
@@ -31,7 +32,24 @@ async def async_setup_entry(
             NecPbxRinging(entry, answered=True),
             NecPbxAmiConnection(entry),
         ]
+    if (attendant := entry.runtime_data.attendant) is not None:
+        entities.append(AttendantCallInProgress(entry, attendant))
     async_add_entities(entities)
+
+
+class AttendantCallInProgress(AttendantEntity, BinarySensorEntity):
+    """On while the AI attendant is talking to a caller."""
+
+    def __init__(self, entry: NecPbxConfigEntry, coordinator: AttendantCoordinator) -> None:
+        super().__init__(entry, coordinator, "call_in_progress")
+
+    @property
+    def is_on(self) -> bool:
+        return int(self.attendant.status.get("active_calls") or 0) > 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        return {"active_calls": int(self.attendant.status.get("active_calls") or 0)}
 
 
 class NecPbxConnection(NecPbxEntity, BinarySensorEntity):

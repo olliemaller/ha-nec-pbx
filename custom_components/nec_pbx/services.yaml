@@ -13,3 +13,25 @@ save_caller:
       selector:
         config_entry:
           integration: nec_pbx
+attendant_mark_message_done:
+  fields:
+    message_id:
+      required: true
+      example: "42"
+      selector:
+        text:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: nec_pbx
+attendant_set_answering:
+  fields:
+    enabled:
+      required: true
+      default: true
+      selector:
+        boolean:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: nec_pbx

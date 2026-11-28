@@ -22,6 +22,9 @@ CONF_AMI_SECRET: Final = "ami_secret"
 CONF_DND_EXTENSIONS: Final = "dnd_extensions"  # FreePBX extensions with a DND switch
 # A to-do list that gets a "Call back ..." item for every missed call.
 CONF_MISSED_TODO: Final = "missed_todo"
+# Optional AI attendant add-on: a separately run nec-ai-attendant engine's HTTP API.
+CONF_ATTENDANT_URL: Final = "attendant_url"
+CONF_ATTENDANT_TOKEN: Final = "attendant_token"
 
 DEFAULT_PORT: Final = 4001
 DEFAULT_NAME: Final = "NEC SL2100"
@@ -56,3 +59,17 @@ LIVE_WINDOW: Final = timedelta(minutes=15)
 # Raise a Repairs issue when the call log has been unreachable this long.
 OUTAGE_ISSUE_AFTER: Final = timedelta(minutes=10)
 ISSUE_UNREACHABLE: Final = "call_log_unreachable_{}"
+
+# AI attendant add-on.
+SERVICE_ATTENDANT_MARK_DONE: Final = "attendant_mark_message_done"
+SERVICE_ATTENDANT_SET_ANSWERING: Final = "attendant_set_answering"
+# Polled this often; once the engine's event websocket is connected, only this often.
+ATTENDANT_POLL: Final = timedelta(seconds=30)
+ATTENDANT_POLL_WITH_EVENTS: Final = timedelta(minutes=5)
+# Websocket reconnect backoff: first retry after this, doubling up to the maximum.
+ATTENDANT_RETRY_MIN: Final = 5.0
+ATTENDANT_RETRY_MAX: Final = 300.0
+ATTENDANT_TIMEOUT: Final = 10.0  # seconds per HTTP request
+ATTENDANT_STATS_DAYS: Final = 7  # the average response time covers this many days
+ATTENDANT_MESSAGES_SHOWN: Final = 10  # latest new messages kept as an attribute
+ISSUE_ATTENDANT_AUTH: Final = "attendant_auth_{}"

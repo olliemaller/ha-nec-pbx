@@ -6,6 +6,12 @@
       },
       "on_a_call": {
         "default": "mdi:phone-in-talk"
+      },
+      "attendant_call_in_progress": {
+        "default": "mdi:robot-outline",
+        "state": {
+          "on": "mdi:phone-in-talk"
+        }
       }
     },
     "sensor": {
@@ -32,12 +38,35 @@
       },
       "extension_missed_calls_today": {
         "default": "mdi:phone-missed"
+      },
+      "attendant_new_messages": {
+        "default": "mdi:message-text-outline"
+      },
+      "attendant_last_call": {
+        "default": "mdi:phone-log"
+      },
+      "attendant_response_time": {
+        "default": "mdi:timer-outline"
+      }
+    },
+    "switch": {
+      "attendant_answer_outside_calls": {
+        "default": "mdi:robot",
+        "state": {
+          "off": "mdi:robot-off"
+        }
       }
     }
   },
   "services": {
     "save_caller": {
       "service": "mdi:account-plus"
+    },
+    "attendant_mark_message_done": {
+      "service": "mdi:message-check"
+    },
+    "attendant_set_answering": {
+      "service": "mdi:robot"
     }
   }
 }

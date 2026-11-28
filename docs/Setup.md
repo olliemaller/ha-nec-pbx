@@ -101,6 +101,10 @@ To keep a list of people to call back, make another to-do list (for example *Cal
 
 If the secret changes in FreePBX later, Home Assistant shows a **Reauthenticate** notification for NEC PBX. Open it, enter the new manager user and secret, and live calls come back without a restart.
 
+## 5. AI attendant (optional)
+
+If you run the separate [nec-ai-attendant](https://github.com/olliemaller/nec-ai-attendant) engine, **Configure** the integration and fill in **AI attendant address** (for example `http://192.0.2.20:8099`) and **AI attendant API token**. The options check the engine answers before saving. Leave the address empty to keep it off. More in [AI attendant](AI-attendant.md).
+
 ## Changing the address later
 
 Open the integration's menu (⋮) and choose **Reconfigure**. If you change the address or port, Home Assistant checks it can connect first. If you keep them, it doesn't, because the running integration already holds the phone system's only SMDR connection.
